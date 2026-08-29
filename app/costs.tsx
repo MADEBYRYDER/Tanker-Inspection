@@ -1,12 +1,12 @@
 import { useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { View } from 'react-native';
-import { today, yearOf } from '../../src/core/dates';
-import { computeForecast } from '../../src/core/engine/forecast';
-import { spendForYear, summarizeSpend } from '../../src/core/engine/timeline';
-import { formatApprox, formatMoney } from '../../src/core/money';
-import type { ForecastHorizon } from '../../src/core/types';
-import { useHomeRecord } from '../../src/state/store';
+import { today, yearOf } from '../src/core/dates';
+import { computeForecast } from '../src/core/engine/forecast';
+import { spendForYear, summarizeSpend } from '../src/core/engine/timeline';
+import { formatApprox, formatMoney } from '../src/core/money';
+import type { ForecastHorizon } from '../src/core/types';
+import { useHomeRecord } from '../src/state/store';
 import {
   Badge,
   Body,
@@ -16,18 +16,18 @@ import {
   Chip,
   Display,
   EmptyState,
-  Faint,
+  Tertiary,
   Heading,
   KeyValue,
   Meter,
-  Muted,
+  Small,
   Notice,
   Row,
   Screen,
-  SectionHeader,
+  SectionTitle,
   Title,
-} from '../../src/ui/components';
-import { CATEGORY_LABEL, spacing, useTheme } from '../../src/ui/theme';
+} from '../src/ui/components';
+import { CATEGORY_LABEL, spacing, useTheme } from '../src/ui/theme';
 
 type Mode = 'mixed' | 'hire';
 
@@ -50,7 +50,7 @@ export default function Money() {
   );
 
   if (!record || !forecast || !spend || !thisYear) {
-    return <Screen><Muted>Set up your home first.</Muted></Screen>;
+    return <Screen><Small>Set up your home first.</Small></Screen>;
   }
 
   if (record.components.length === 0) {
@@ -81,12 +81,12 @@ export default function Money() {
       <Title>Costs</Title>
 
       <Card>
-        <Faint>SUGGESTED MONTHLY RESERVE</Faint>
+        <Tertiary>SUGGESTED MONTHLY RESERVE</Tertiary>
         <Row align="flex-end" gap={spacing.xs}>
-          <Display style={{ color: theme.accent }}>
+          <Display style={{ color: theme.blue }}>
             {formatMoney(forecast.suggestedMonthlyReserveCents)}
           </Display>
-          <Muted style={{ marginBottom: 7 }}>/ month</Muted>
+          <Small style={{ marginBottom: 7 }}>/ month</Small>
         </Row>
         <Body>
           Set this aside and the five-year projection below is already covered when it arrives. The
@@ -96,7 +96,7 @@ export default function Money() {
       </Card>
 
       <Card>
-        <SectionHeader title="Projected spending" />
+        <SectionTitle title="Projected spending" />
         <KeyValue label="Next 12 months" value={formatApprox(forecast.horizons.oneYear.totalCents)} />
         <KeyValue label="Next 3 years" value={formatApprox(forecast.horizons.threeYear.totalCents)} />
         <KeyValue label="Next 5 years" value={formatApprox(forecast.horizons.fiveYear.totalCents)} />
@@ -104,14 +104,14 @@ export default function Money() {
           <Chip label="I'll DIY what I can" selected={mode === 'mixed'} onPress={() => setMode('mixed')} />
           <Chip label="Hire everything out" selected={mode === 'hire'} onPress={() => setMode('hire')} />
         </Row>
-        <Faint>
+        <Tertiary>
           {mode === 'mixed'
             ? 'Recurring tasks priced as DIY where that is safe, and at contractor rates where the job needs a licensed trade.'
             : 'Every recurring task priced at contractor rates.'}
-        </Faint>
+        </Tertiary>
       </Card>
 
-      <SectionHeader title="What makes up the number" />
+      <SectionTitle title="What makes up the number" />
       <Row gap={spacing.sm}>
         {([1, 3, 5] as const).map((h) => (
           <Chip key={h} label={`${h} year${h === 1 ? '' : 's'}`} selected={horizon === h} onPress={() => setHorizon(h)} />
@@ -119,7 +119,7 @@ export default function Money() {
       </Row>
 
       {selected.items.length === 0 ? (
-        <Card><Muted>Nothing projected in this window.</Muted></Card>
+        <Card><Small>Nothing projected in this window.</Small></Card>
       ) : null}
 
       {selected.items.map((item, index) => (
@@ -131,29 +131,29 @@ export default function Money() {
             <View style={{ flex: 1, gap: 3 }}>
               <BodyStrong>{item.label}</BodyStrong>
               {item.kind === 'replacement' ? (
-                <Faint>
+                <Tertiary>
                   {formatMoney(item.fullCostCents)} if it happens · {Math.round(item.probability * 100)}%
                   chance in {horizon} {horizon === 1 ? 'year' : 'years'}
                   {item.likelyYear ? ` · likely around ${item.likelyYear}` : ''}
-                </Faint>
+                </Tertiary>
               ) : (
-                <Faint>Recurring maintenance across {horizon} {horizon === 1 ? 'year' : 'years'}</Faint>
+                <Tertiary>Recurring maintenance across {horizon} {horizon === 1 ? 'year' : 'years'}</Tertiary>
               )}
             </View>
             <View style={{ alignItems: 'flex-end', gap: spacing.xs }}>
               <BodyStrong>{formatMoney(item.expectedCents)}</BodyStrong>
               <Badge
                 label={item.basis === 'fact' ? 'documented age' : 'estimated age'}
-                fg={item.basis === 'fact' ? theme.success : theme.textMuted}
-                bg={item.basis === 'fact' ? theme.successSoft : theme.surfaceAlt}
+                fg={item.basis === 'fact' ? theme.sage : theme.textSecondary}
+                bg={item.basis === 'fact' ? theme.sageSoft : theme.surfaceSunken}
               />
             </View>
           </Row>
           <Meter
             value={(item.expectedCents / maxItem) * 100}
-            color={item.basis === 'fact' ? theme.accent : theme.textFaint}
+            color={item.basis === 'fact' ? theme.blue : theme.textTertiary}
           />
-          <Faint>{item.note}</Faint>
+          <Tertiary>{item.note}</Tertiary>
         </Card>
       ))}
 
@@ -164,7 +164,7 @@ export default function Money() {
         stable instead of swinging between $0 and a full replacement.
       </Notice>
 
-      <SectionHeader title="What you have actually spent" />
+      <SectionTitle title="What you have actually spent" />
       <Card>
         <KeyValue label={`${yearOf(asOf)} so far`} value={formatMoney(thisYear.totalCents)} />
         <KeyValue label="All time on record" value={formatMoney(spend.totalCents)} />
@@ -172,30 +172,30 @@ export default function Money() {
           {spend.byCategory.slice(0, 6).map((bucket) => (
             <View key={bucket.category} style={{ gap: 4 }}>
               <Row justify="space-between">
-                <Muted>{CATEGORY_LABEL[bucket.category] ?? 'Not linked to equipment'}</Muted>
-                <Muted>{formatMoney(bucket.totalCents)}</Muted>
+                <Small>{CATEGORY_LABEL[bucket.category] ?? 'Not linked to equipment'}</Small>
+                <Small>{formatMoney(bucket.totalCents)}</Small>
               </Row>
               <Meter
                 value={(bucket.totalCents / Math.max(spend.totalCents, 1)) * 100}
-                color={theme.accent}
+                color={theme.blue}
               />
             </View>
           ))}
         </View>
-        <Faint>
+        <Tertiary>
           Only entries with a recorded amount are counted. Work logged without a cost is in your
           timeline but not in this total.
-        </Faint>
+        </Tertiary>
       </Card>
 
       <Card>
         <Heading>How confident is this?</Heading>
-        <Muted>
+        <Small>
           {Math.round(forecast.confidence * 100)}% of the equipment behind these numbers has a
           documented age. The rest is estimated from the age of the house and typical service life,
           and is marked as such on every line above. Adding install dates — or photographing a
           nameplate — moves an item from estimate to fact and tightens the whole forecast.
-        </Muted>
+        </Small>
       </Card>
     </Screen>
   );

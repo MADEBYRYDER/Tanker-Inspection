@@ -16,16 +16,16 @@ import {
   Chip,
   Divider,
   EmptyState,
-  Faint,
+  Tertiary,
   Field,
   Heading,
   KeyValue,
-  Muted,
+  Small,
   Notice,
   ProvenanceTag,
   Row,
   Screen,
-  SectionHeader,
+  SectionTitle,
   Title,
 } from '../../src/ui/components';
 import { spacing, useTheme } from '../../src/ui/theme';
@@ -83,7 +83,7 @@ function ComposeRequest({
     });
   }, [record, component, problem]);
 
-  if (!record) return <Screen><Muted>Set up your home first.</Muted></Screen>;
+  if (!record) return <Screen><Small>Set up your home first.</Small></Screen>;
 
   const providers = component ? providersForCategory(component.category) : PROVIDERS;
 
@@ -111,7 +111,7 @@ function ComposeRequest({
       </View>
 
       <Card>
-        <SectionHeader title="What needs work?" />
+        <SectionTitle title="What needs work?" />
         <Row wrap gap={spacing.xs}>
           <Chip label="Not specific equipment" selected={!componentId} onPress={() => setComponentId(undefined)} />
           {record.components.map((c) => (
@@ -129,7 +129,7 @@ function ComposeRequest({
           multiline
           placeholder="No hot water since yesterday morning. Pilot light appears to be lit. Small puddle at the base."
         />
-        <Faint>URGENCY</Faint>
+        <Tertiary>URGENCY</Tertiary>
         <Row gap={spacing.sm} wrap>
           <Chip label="Emergency" selected={urgency === 'emergency'} onPress={() => setUrgency('emergency')} />
           <Chip label="Soon" selected={urgency === 'soon'} onPress={() => setUrgency('soon')} />
@@ -138,9 +138,9 @@ function ComposeRequest({
       </Card>
 
       <Card>
-        <SectionHeader title="Send to" />
+        <SectionTitle title="Send to" />
         {providers.length === 0 ? (
-          <Muted>No provider covers this trade in your area yet.</Muted>
+          <Small>No provider covers this trade in your area yet.</Small>
         ) : (
           providers.map((provider) => (
             <Row key={provider.id} justify="space-between" gap={spacing.md}>
@@ -148,11 +148,11 @@ function ComposeRequest({
                 <Row gap={spacing.xs}>
                   <BodyStrong>{provider.name}</BodyStrong>
                   {provider.isLaunchPartner ? (
-                    <Badge label="launch partner" fg={theme.accent} bg={theme.accentSoft} />
+                    <Badge label="launch partner" fg={theme.blue} bg={theme.sageSoft} />
                   ) : null}
                 </Row>
-                <Faint>{provider.serviceArea}</Faint>
-                {provider.blurb ? <Muted>{provider.blurb}</Muted> : null}
+                <Tertiary>{provider.serviceArea}</Tertiary>
+                {provider.blurb ? <Small>{provider.blurb}</Small> : null}
               </View>
               <Chip
                 label={providerId === provider.id ? 'Selected' : 'Select'}
@@ -166,7 +166,7 @@ function ComposeRequest({
 
       {preview ? (
         <Card>
-          <SectionHeader title="What they'll receive" />
+          <SectionTitle title="What they'll receive" />
           <PacketView packet={preview} />
         </Card>
       ) : null}
@@ -178,10 +178,10 @@ function ComposeRequest({
         disabled={problem.trim().length < 8}
         full
       />
-      <Faint>
+      <Tertiary>
         Sending shares the packet above with the selected provider. Your address is included; your
         cost history is not.
-      </Faint>
+      </Tertiary>
     </Screen>
   );
 }
@@ -227,29 +227,29 @@ function ViewRequest({ id }: { id: string }) {
         <Row gap={spacing.xs}>
           <Badge
             label={request.status}
-            fg={request.status === 'completed' ? theme.success : theme.info}
-            bg={request.status === 'completed' ? theme.successSoft : theme.infoSoft}
+            fg={request.status === 'completed' ? theme.sage : theme.blue}
+            bg={request.status === 'completed' ? theme.sageSoft : theme.blueSoft}
           />
           <Badge
             label={request.urgency}
-            fg={request.urgency === 'emergency' ? theme.danger : theme.textMuted}
-            bg={request.urgency === 'emergency' ? theme.dangerSoft : theme.surfaceAlt}
+            fg={request.urgency === 'emergency' ? theme.red : theme.textSecondary}
+            bg={request.urgency === 'emergency' ? theme.redSoft : theme.surfaceSunken}
           />
         </Row>
         <Title>{request.title}</Title>
-        <Faint>
+        <Tertiary>
           Created {formatDate(request.createdAt.slice(0, 10))}
           {provider ? ` · sent to ${provider.name}` : ''}
-        </Faint>
+        </Tertiary>
       </View>
 
       <Card>
-        <SectionHeader title="The packet they received" />
+        <SectionTitle title="The packet they received" />
         <PacketView packet={request.packet} />
       </Card>
 
       {request.status === 'completed' ? (
-        <Notice tone="success" icon="checkmark-circle-outline">
+        <Notice tone="good" icon="checkmark-circle-outline">
           Completed. The work is now a permanent part of your home's timeline and transfers with the
           house.
         </Notice>
@@ -257,11 +257,11 @@ function ViewRequest({ id }: { id: string }) {
         <Notice icon="close-circle-outline">This request was cancelled.</Notice>
       ) : closing ? (
         <Card>
-          <SectionHeader title="Close out the job" />
-          <Muted>
+          <SectionTitle title="Close out the job" />
+          <Small>
             In production the contractor uploads their invoice and completion photos and this fills in
             automatically. Here you can enter it yourself.
-          </Muted>
+          </Small>
           <Field label="Who did the work" value={vendor} onChangeText={setVendor} placeholder={provider?.name ?? 'Company name'} />
           <Field label="Amount" value={cost} onChangeText={setCost} keyboardType="decimal-pad" placeholder="0.00" />
           <Field label="What was done" value={description} onChangeText={setDescription} multiline />
@@ -271,7 +271,7 @@ function ViewRequest({ id }: { id: string }) {
       ) : (
         <Row gap={spacing.sm} wrap>
           <Button label="Mark completed" icon="checkmark-circle-outline" onPress={() => setClosing(true)} />
-          <Button label="Cancel request" variant="ghost" tone={theme.danger} onPress={() => { cancelRequest(request.id); router.back(); }} />
+          <Button label="Cancel request" variant="ghost" tone={theme.red} onPress={() => { cancelRequest(request.id); router.back(); }} />
         </Row>
       )}
     </Screen>
@@ -287,7 +287,7 @@ function PacketView({ packet }: { packet: ServiceRequest['packet'] }) {
       {packet.equipment ? (
         <>
           <Divider />
-          <Faint>EQUIPMENT</Faint>
+          <Tertiary>EQUIPMENT</Tertiary>
           <KeyValue label="Item" value={`${packet.equipment.name} — ${packet.equipment.type}`} />
           {packet.equipment.manufacturer ? <KeyValue label="Manufacturer" value={packet.equipment.manufacturer} /> : null}
           {packet.equipment.modelNumber ? <KeyValue label="Model" value={packet.equipment.modelNumber} /> : null}
@@ -296,30 +296,30 @@ function PacketView({ packet }: { packet: ServiceRequest['packet'] }) {
           {packet.equipment.specs.map((spec, index) => (
             <KeyValue key={index} label={spec.label} value={spec.value} provenance={spec.provenance} />
           ))}
-          <Muted>{packet.equipment.warrantyStatus}</Muted>
+          <Small>{packet.equipment.warrantyStatus}</Small>
         </>
       ) : null}
 
       {packet.relevantHistory.length > 0 ? (
         <>
           <Divider />
-          <Faint>SERVICE HISTORY</Faint>
+          <Tertiary>SERVICE HISTORY</Tertiary>
           {packet.relevantHistory.map((entry, index) => (
             <Row key={index} gap={spacing.sm} align="flex-start">
-              <Ionicons name="checkmark-circle-outline" size={15} color={theme.success} style={{ marginTop: 2 }} />
-              <Muted style={{ flex: 1 }}>
+              <Ionicons name="checkmark-circle-outline" size={15} color={theme.sage} style={{ marginTop: 2 }} />
+              <Small style={{ flex: 1 }}>
                 {formatDate(entry.date)} — {entry.title}
                 {entry.vendor ? ` (${entry.vendor})` : ''}
-              </Muted>
+              </Small>
             </Row>
           ))}
         </>
       ) : null}
 
       <Divider />
-      <Faint>PROBLEM</Faint>
+      <Tertiary>PROBLEM</Tertiary>
       <Body>{packet.problem}</Body>
-      <Faint>{packet.photoCount} photo{packet.photoCount === 1 ? '' : 's'} attached</Faint>
+      <Tertiary>{packet.photoCount} photo{packet.photoCount === 1 ? '' : 's'} attached</Tertiary>
     </View>
   );
 }

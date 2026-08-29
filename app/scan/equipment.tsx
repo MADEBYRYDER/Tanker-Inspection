@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
-import { useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useEffect, useRef, useState } from 'react';
 import { Pressable, View } from 'react-native';
 import { GatewayNotConfiguredError, identifyComponents, isGatewayConfigured } from '../../src/ai/client';
 import type { ComponentCategory } from '../../src/core/types';
@@ -14,15 +14,15 @@ import {
   Button,
   Card,
   Chip,
-  Faint,
+  Tertiary,
   Field,
   Heading,
   Loading,
-  Muted,
+  Small,
   Notice,
   Row,
   Screen,
-  SectionHeader,
+  SectionTitle,
 } from '../../src/ui/components';
 import { CATEGORY_LABEL, radius, spacing, useTheme } from '../../src/ui/theme';
 
@@ -47,11 +47,21 @@ const CATEGORIES: ComponentCategory[] = [
  * which the owner already knew. The rating label is where the model number, serial,
  * capacity, and the date code that drives the entire age calculation actually live.
  */
-export default function Scan() {
+export default function ScanEquipment() {
   const theme = useTheme();
   const router = useRouter();
   const record = useHomeRecord();
   const draft = useScanDraft();
+  // The guided walkthrough hands over which area it sent you to scan.
+  const params = useLocalSearchParams<{ category?: string; area?: string }>();
+  const seeded = useRef(false);
+
+  useEffect(() => {
+    if (params.category && !seeded.current) {
+      seeded.current = true;
+      draft.setHints({ categoryHint: params.category, locationHint: params.area });
+    }
+  }, [params.category, params.area, draft]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | undefined>();
 
@@ -115,7 +125,7 @@ export default function Scan() {
       </View>
 
       <Card>
-        <SectionHeader title="What are you looking at?" />
+        <SectionTitle title="What are you looking at?" />
         <Row wrap gap={spacing.sm}>
           {CATEGORIES.map((category) => (
             <Chip
@@ -136,23 +146,23 @@ export default function Scan() {
           onChangeText={(value) => draft.setHints({ locationHint: value })}
           placeholder="Garage, attic, side yard…"
         />
-        <Faint>
+        <Tertiary>
           Both are optional hints. They help disambiguate a label that could belong to more than one
           kind of equipment.
-        </Faint>
+        </Tertiary>
       </Card>
 
       <Card>
-        <SectionHeader title={`Photos (${draft.images.length}/6)`} />
+        <SectionTitle title={`Photos (${draft.images.length}/6)`} />
         {draft.images.length === 0 ? (
-          <Muted>Nothing captured yet.</Muted>
+          <Small>Nothing captured yet.</Small>
         ) : (
           <Row wrap gap={spacing.sm}>
             {draft.images.map((image) => (
               <View key={image.uri}>
                 <Image
                   source={{ uri: image.uri }}
-                  style={{ width: 88, height: 88, borderRadius: radius.md, backgroundColor: theme.surfaceAlt }}
+                  style={{ width: 88, height: 88, borderRadius: radius.md, backgroundColor: theme.surfaceSunken }}
                   contentFit="cover"
                 />
                 <Pressable
@@ -166,10 +176,10 @@ export default function Scan() {
                     borderRadius: radius.pill,
                   }}
                 >
-                  <Ionicons name="close-circle" size={22} color={theme.danger} />
+                  <Ionicons name="close-circle" size={22} color={theme.red} />
                 </Pressable>
                 {image.role ? (
-                  <Faint style={{ textAlign: 'center', marginTop: 2 }}>{image.role}</Faint>
+                  <Tertiary style={{ textAlign: 'center', marginTop: 2 }}>{image.role}</Tertiary>
                 ) : null}
               </View>
             ))}
@@ -212,7 +222,7 @@ export default function Scan() {
         </Row>
       </Card>
 
-      {error ? <Notice tone="danger" icon="alert-circle-outline">{error}</Notice> : null}
+      {error ? <Notice tone="urgent" icon="alert-circle-outline">{error}</Notice> : null}
 
       {busy ? (
         <Loading label="Reading the label…" />
@@ -246,8 +256,8 @@ export default function Scan() {
             'Serial numbers matter most: many manufacturers encode the build date in them, and that date drives the age, the warranty, and every cost projection that follows.',
           ].map((tip) => (
             <Row key={tip} gap={spacing.sm} align="flex-start">
-              <Ionicons name="ellipse" size={6} color={theme.textFaint} style={{ marginTop: 7 }} />
-              <Muted style={{ flex: 1 }}>{tip}</Muted>
+              <Ionicons name="ellipse" size={6} color={theme.textTertiary} style={{ marginTop: 7 }} />
+              <Small style={{ flex: 1 }}>{tip}</Small>
             </Row>
           ))}
         </View>

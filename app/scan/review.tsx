@@ -14,15 +14,15 @@ import {
   Card,
   Chip,
   Divider,
-  Faint,
+  Tertiary,
   Field,
   Heading,
-  Muted,
+  Small,
   Notice,
   ProvenanceTag,
   Row,
   Screen,
-  SectionHeader,
+  SectionTitle,
 } from '../../src/ui/components';
 import { CATEGORY_LABEL, spacing, useTheme } from '../../src/ui/theme';
 
@@ -94,7 +94,7 @@ export default function ScanReview() {
   if (draft.results.length === 0) {
     return (
       <Screen>
-        <Notice tone="warning" icon="alert-circle-outline">
+        <Notice tone="attention" icon="alert-circle-outline">
           Nothing to review. Go back and capture a photo of the equipment.
         </Notice>
         <Button label="Back to scanning" onPress={() => router.back()} />
@@ -105,7 +105,7 @@ export default function ScanReview() {
   return (
     <Screen>
       {draft.unreadable ? (
-        <Notice tone="warning" icon="camera-reverse-outline">
+        <Notice tone="attention" icon="camera-reverse-outline">
           The photos did not show a readable label. {draft.guidance}
         </Notice>
       ) : draft.guidance ? (
@@ -116,10 +116,10 @@ export default function ScanReview() {
         <Heading>
           {draft.results.length} {draft.results.length === 1 ? 'item' : 'items'} to add
         </Heading>
-        <Muted>
+        <Small>
           Check anything marked as uncertain before saving. Fields left blank stay blank — the app
           will not fill them with a guess.
-        </Muted>
+        </Small>
       </View>
 
       {draft.results.map((result, index) => (
@@ -164,20 +164,20 @@ function ResultCard({
         <Row gap={spacing.xs}>
           <Badge
             label={`${Math.round(result.confidence * 100)}% sure`}
-            fg={lowConfidence ? theme.warning : theme.success}
-            bg={lowConfidence ? theme.warningSoft : theme.successSoft}
+            fg={lowConfidence ? theme.amber : theme.sage}
+            bg={lowConfidence ? theme.amberSoft : theme.sageSoft}
           />
         </Row>
       </Row>
 
       {result.openQuestions.length > 0 ? (
-        <Notice tone="warning" icon="help-circle-outline">
+        <Notice tone="attention" icon="help-circle-outline">
           {result.openQuestions.join('\n')}
         </Notice>
       ) : null}
 
       {lowConfidence ? (
-        <Notice tone="warning" icon="eye-outline">
+        <Notice tone="attention" icon="eye-outline">
           This is a low-confidence read. Check the model and serial against the label before saving —
           the age, warranty status, and every cost projection are derived from them.
         </Notice>
@@ -193,7 +193,7 @@ function ResultCard({
       />
 
       <View style={{ gap: spacing.xs }}>
-        <Faint>CATEGORY</Faint>
+        <Tertiary>CATEGORY</Tertiary>
         <Row wrap gap={spacing.xs}>
           {CATEGORIES.map((category) => (
             <Chip
@@ -249,15 +249,15 @@ function ResultCard({
           />
         </View>
       </Row>
-      {result.manufacturedYearBasis ? <Faint>How the year was determined: {result.manufacturedYearBasis}</Faint> : null}
+      {result.manufacturedYearBasis ? <Tertiary>How the year was determined: {result.manufacturedYearBasis}</Tertiary> : null}
 
       {result.specs.length > 0 ? (
         <>
           <Divider />
-          <SectionHeader title="Specifications" />
+          <SectionTitle title="Specifications" />
           {result.specs.map((spec, index) => (
             <Row key={`${spec.key}-${index}`} justify="space-between" gap={spacing.md}>
-              <Muted style={{ flex: 1 }}>{spec.label}</Muted>
+              <Small style={{ flex: 1 }}>{spec.label}</Small>
               <Row gap={spacing.xs}>
                 <BodyStrong>{spec.value}</BodyStrong>
                 <ProvenanceTag provenance={spec.provenance} />
@@ -270,7 +270,7 @@ function ResultCard({
       {result.warrantyNote ? (
         <>
           <Divider />
-          <Faint>WARRANTY</Faint>
+          <Tertiary>WARRANTY</Tertiary>
           <Body>{result.warrantyNote}</Body>
         </>
       ) : null}
@@ -278,16 +278,16 @@ function ResultCard({
       {result.recommendedMaintenance.length > 0 ? (
         <>
           <Divider />
-          <Faint>RECOMMENDED MAINTENANCE</Faint>
+          <Tertiary>RECOMMENDED MAINTENANCE</Tertiary>
           {result.recommendedMaintenance.map((item) => (
-            <Muted key={item}>• {item}</Muted>
+            <Small key={item}>• {item}</Small>
           ))}
         </>
       ) : null}
 
-      {result.notes ? <Faint>{result.notes}</Faint> : null}
+      {result.notes ? <Tertiary>{result.notes}</Tertiary> : null}
 
-      <Button label="Don't add this one" variant="ghost" tone={theme.danger} onPress={onRemove} />
+      <Button label="Don't add this one" variant="ghost" tone={theme.red} onPress={onRemove} />
     </Card>
   );
 }

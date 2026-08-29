@@ -4,10 +4,9 @@ import { useMemo, useState } from 'react';
 import { View } from 'react-native';
 import { formatDate, relativeDayLabel, today } from '../../src/core/dates';
 import { generateTasks } from '../../src/core/engine/schedule';
-import { formatMoney, formatRange } from '../../src/core/money';
+import { formatMoney } from '../../src/core/money';
 import { useHomeRecord, useStore } from '../../src/state/store';
 import {
-  Badge,
   Body,
   BodyStrong,
   Button,
@@ -15,26 +14,28 @@ import {
   Chip,
   Divider,
   EmptyState,
-  Faint,
   Field,
   Heading,
-  KeyValue,
-  Muted,
+  Label,
   Notice,
   Row,
   Screen,
-  SectionHeader,
+  Small,
+  Stat,
+  StatusPill,
+  StickyBar,
+  Tertiary,
   Title,
 } from '../../src/ui/components';
-import { spacing, urgencyTone, useTheme } from '../../src/ui/theme';
+import { radius, spacing, urgencyStatus, useTheme } from '../../src/ui/theme';
 
 type Path = 'diy' | 'hire';
 
 /**
- * A single maintenance task, with both paths the product promises.
+ * One task, both ways out of it.
  *
- * Where a job is genuinely unsafe without a licensed trade, the DIY tab does not
- * offer a watered-down version of the instructions — it says why, and points at the
+ * Where a job genuinely needs a licensed trade, the DIY tab does not offer a
+ * watered-down version of the instructions — it says why, and hands over to the
  * other path. Publishing half a heat-exchanger inspection would be worse than
  * publishing none.
  */
@@ -65,9 +66,8 @@ export default function TaskDetail() {
     );
   }
 
-  const tone = urgencyTone(theme, task.urgency, task.criticality);
+  const status = urgencyStatus(task.urgency, task.criticality);
   const proOnly = Boolean(task.diy.proOnlyReason);
-  const effectivePath: Path = proOnly && path === 'diy' ? 'diy' : path;
 
   const logComplete = (performedBy: 'diy' | 'pro') => {
     const parsed = Number(cost.replace(/[^0-9.]/g, ''));
@@ -83,172 +83,171 @@ export default function TaskDetail() {
   };
 
   return (
-    <Screen>
-      <View style={{ gap: spacing.xs }}>
+    <View style={{ flex: 1, backgroundColor: theme.bg }}>
+      <Screen gap={spacing.xl}>
+        <View style={{ gap: spacing.md, marginTop: spacing.sm }}>
+          <Row gap={spacing.sm}>
+            <StatusPill status={status.key} label={status.label} />
+            {task.criticality === 'safety' ? (
+              <StatusPill status="urgent" label="Safety" icon="shield-outline" />
+            ) : null}
+          </Row>
+          <Title>{task.title}</Title>
+          <Small>
+            {task.componentName ?? 'Whole home'} · due {formatDate(task.dueDate)} (
+            {relativeDayLabel(asOf, task.dueDate)})
+          </Small>
+        </View>
+
+        <Card>
+          <Row>
+            <Stat
+              value={proOnly ? '—' : `${task.diy.estimatedMinutes} min`}
+              label={proOnly ? 'Not a DIY job' : 'If you do it'}
+            />
+            <Stat
+              value={`${formatMoney(task.hireCostRangeCents[0])}+`}
+              label={`Hired, up to ${formatMoney(task.hireCostRangeCents[1])}`}
+            />
+            <Stat
+              value={task.lastCompletedOn ? formatDate(task.lastCompletedOn).replace(/, \d{4}$/, '') : 'Never'}
+              label={task.lastCompletedOn ? `Last done ${task.lastCompletedOn.slice(0, 4)}` : 'Not yet logged'}
+            />
+          </Row>
+        </Card>
+
+        <Card>
+          <Label>Why this matters</Label>
+          <Body>{task.why}</Body>
+        </Card>
+
         <Row gap={spacing.sm}>
-          <Body>{tone.dot}</Body>
-          <Badge label={tone.label} fg={tone.fg} bg={tone.bg} />
-          {task.criticality === 'safety' ? (
-            <Badge label="safety" fg={theme.danger} bg={theme.dangerSoft} />
-          ) : null}
+          <Chip label="Do it myself" selected={path === 'diy'} onPress={() => setPath('diy')} />
+          <Chip label="Hire someone" selected={path === 'hire'} onPress={() => setPath('hire')} />
         </Row>
-        <Title>{task.title}</Title>
-        {task.componentName ? (
-          <Muted>
-            {task.componentName}
-            {task.componentId ? '' : ''}
-          </Muted>
-        ) : (
-          <Muted>Whole home</Muted>
-        )}
-        <Faint>
-          Due {formatDate(task.dueDate)} · {relativeDayLabel(asOf, task.dueDate)}
-          {task.lastCompletedOn ? ` · last done ${formatDate(task.lastCompletedOn)}` : ' · never logged'}
-        </Faint>
-      </View>
 
-      <Card>
-        <Heading>Why this matters</Heading>
-        <Body>{task.why}</Body>
-      </Card>
+        {path === 'diy' ? (
+          proOnly ? (
+            <Card>
+              <Notice tone="attention" icon="shield-outline">
+                {task.diy.proOnlyReason}
+              </Notice>
+              {task.diy.steps.length > 0 ? (
+                <>
+                  <Divider />
+                  <Label>What you can safely do yourself</Label>
+                  <Steps steps={task.diy.steps} />
+                </>
+              ) : null}
+              <Button label="Find someone to do it" icon="call-outline" onPress={() => setPath('hire')} />
+            </Card>
+          ) : (
+            <Card>
+              {task.diy.materials.length > 0 ? (
+                <>
+                  <Label>What you need</Label>
+                  {task.diy.materials.map((material) => (
+                    <Row key={material} gap={spacing.sm} align="flex-start">
+                      <Ionicons name="cart-outline" size={15} color={theme.textSecondary} style={{ marginTop: 3 }} />
+                      <Body style={{ flex: 1 }}>{material}</Body>
+                    </Row>
+                  ))}
+                </>
+              ) : null}
 
-      <Row gap={spacing.sm}>
-        <Chip label="Do it myself" selected={effectivePath === 'diy'} onPress={() => setPath('diy')} />
-        <Chip label="Hire someone" selected={effectivePath === 'hire'} onPress={() => setPath('hire')} />
-      </Row>
-
-      {effectivePath === 'diy' ? (
-        proOnly ? (
-          <Card>
-            <Notice tone="warning" icon="shield-outline">
-              {task.diy.proOnlyReason}
-            </Notice>
-            {task.diy.steps.length > 0 ? (
-              <>
-                <Divider />
-                <Heading>What you can safely do yourself</Heading>
-                <Steps task={task} />
-              </>
-            ) : null}
-            <Button label="Find someone to do it" icon="call-outline" onPress={() => setPath('hire')} />
-          </Card>
-        ) : (
-          <Card>
-            <Row gap={spacing.lg}>
-              <View>
-                <Faint>TIME</Faint>
-                <BodyStrong>{task.diy.estimatedMinutes} min</BodyStrong>
-              </View>
-              <View>
-                <Faint>DIFFICULTY</Faint>
-                <BodyStrong style={{ textTransform: 'capitalize' }}>{task.diy.difficulty}</BodyStrong>
-              </View>
-              <View>
-                <Faint>VS. HIRING</Faint>
-                <BodyStrong>{formatRange(task.hireCostRangeCents)}</BodyStrong>
-              </View>
-            </Row>
-
-            {task.diy.materials.length > 0 ? (
-              <>
-                <Divider />
-                <Faint>MATERIALS</Faint>
-                {task.diy.materials.map((m) => (
-                  <Row key={m} gap={spacing.sm} align="flex-start">
-                    <Ionicons name="cart-outline" size={15} color={theme.textMuted} style={{ marginTop: 2 }} />
-                    <Body style={{ flex: 1 }}>{m}</Body>
-                  </Row>
-                ))}
-              </>
-            ) : null}
-
-            {task.diy.tools.length > 0 ? (
-              <>
-                <Faint>TOOLS</Faint>
+              {task.diy.tools.length > 0 ? (
                 <Row wrap gap={spacing.xs}>
-                  {task.diy.tools.map((t) => (
-                    <Chip key={t} label={t} />
+                  {task.diy.tools.map((tool) => (
+                    <Chip key={tool} label={tool} />
                   ))}
                 </Row>
-              </>
-            ) : null}
+              ) : null}
 
-            <Divider />
-            <Heading>Steps</Heading>
-            <Steps task={task} />
+              <Divider />
+              <Label>Steps</Label>
+              <Steps steps={task.diy.steps} />
+            </Card>
+          )
+        ) : (
+          <Card>
+            <Label>Hire it out</Label>
+            <Body>
+              The request goes out with the equipment already described — make, model, serial, age,
+              warranty status, and this item's service history. You don't explain it again.
+            </Body>
+            <Row justify="space-between">
+              <Small>Typical price</Small>
+              <BodyStrong>
+                {formatMoney(task.hireCostRangeCents[0])}–{formatMoney(task.hireCostRangeCents[1])}
+              </BodyStrong>
+            </Row>
+            <Button
+              label="Create service request"
+              icon="paper-plane-outline"
+              full
+              onPress={() =>
+                router.push({
+                  pathname: '/service/new',
+                  params: { componentId: task.componentId ?? '', taskKey: task.key, title: task.title },
+                })
+              }
+            />
           </Card>
-        )
-      ) : (
-        <Card>
-          <SectionHeader title="Hire it out" />
-          <KeyValue label="Typical price" value={formatRange(task.hireCostRangeCents)} />
-          <Body>
-            The request goes out with the equipment already described — make, model, serial, age,
-            warranty status, and the service history for this item. You do not explain it again.
-          </Body>
-          <Button
-            label="Create service request"
-            icon="paper-plane-outline"
-            onPress={() =>
-              router.push({
-                pathname: '/service/new',
-                params: { componentId: task.componentId ?? '', taskKey: task.key, title: task.title },
-              })
-            }
-          />
-        </Card>
-      )}
+        )}
 
-      <SectionHeader title="Mark it done" />
-      {logging ? (
-        <Card>
-          <Field label="What did it cost? (optional)" value={cost} onChangeText={setCost} keyboardType="decimal-pad" placeholder="189.00" />
-          <Field label="Who did it? (optional)" value={vendor} onChangeText={setVendor} placeholder="Company name" />
-          <Field label="Notes (optional)" value={notes} onChangeText={setNotes} multiline placeholder="Anything worth remembering next time" />
-          <Row gap={spacing.sm} wrap>
-            <Button label="I did it myself" icon="hand-left-outline" onPress={() => logComplete('diy')} />
-            <Button label="A pro did it" icon="briefcase-outline" variant="secondary" onPress={() => logComplete('pro')} />
-          </Row>
-          <Button label="Cancel" variant="ghost" onPress={() => setLogging(false)} />
-        </Card>
-      ) : (
-        <Card>
-          <Muted>
-            Logging this moves the next due date to {task.lastCompletedOn ? 'today plus the interval' : 'the correct date'} and
-            updates the health score and the forecast. If a cost or a company is entered, it also
-            becomes a timeline entry.
-          </Muted>
-          <Button label="Mark complete" icon="checkmark-circle-outline" onPress={() => setLogging(true)} full />
-        </Card>
-      )}
-    </Screen>
+        {logging ? (
+          <Card>
+            <Label>Log it</Label>
+            <Field label="What did it cost? (optional)" value={cost} onChangeText={setCost} keyboardType="decimal-pad" placeholder="189.00" />
+            <Field label="Who did it? (optional)" value={vendor} onChangeText={setVendor} placeholder="Company name" />
+            <Field label="Notes (optional)" value={notes} onChangeText={setNotes} multiline placeholder="Anything worth remembering next time" />
+            <Row gap={spacing.sm} wrap>
+              <Button label="I did it" icon="hand-left-outline" onPress={() => logComplete('diy')} />
+              <Button label="A pro did it" variant="secondary" onPress={() => logComplete('pro')} />
+            </Row>
+            <Button label="Cancel" variant="ghost" onPress={() => setLogging(false)} />
+          </Card>
+        ) : (
+          <Tertiary>
+            Marking this done moves the next due date, and updates the health score and the cost
+            forecast. Add a cost or a company and it also becomes a timeline entry.
+          </Tertiary>
+        )}
+      </Screen>
+
+      {!logging ? (
+        <StickyBar>
+          <Button label="Mark complete" icon="checkmark-circle-outline" size="lg" full onPress={() => setLogging(true)} />
+        </StickyBar>
+      ) : null}
+    </View>
   );
 }
 
-function Steps({ task }: { task: { diy: { steps: { text: string; caution?: string }[] } } }) {
+function Steps({ steps }: { steps: { text: string; caution?: string }[] }) {
   const theme = useTheme();
   return (
-    <View style={{ gap: spacing.md }}>
-      {task.diy.steps.map((step, index) => (
-        <View key={index} style={{ gap: spacing.xs }}>
+    <View style={{ gap: spacing.lg }}>
+      {steps.map((step, index) => (
+        <View key={index} style={{ gap: spacing.sm }}>
           <Row gap={spacing.md} align="flex-start">
             <View
               style={{
-                width: 24,
-                height: 24,
-                borderRadius: 12,
-                backgroundColor: theme.accentSoft,
+                width: 25,
+                height: 25,
+                borderRadius: radius.pill,
+                backgroundColor: theme.surfaceSunken,
                 alignItems: 'center',
                 justifyContent: 'center',
               }}
             >
-              <BodyStrong style={{ color: theme.accent, fontSize: 13 }}>{index + 1}</BodyStrong>
+              <BodyStrong style={{ fontSize: 13, color: theme.textSecondary }}>{index + 1}</BodyStrong>
             </View>
-            <Body style={{ flex: 1, lineHeight: 21 }}>{step.text}</Body>
+            <Body style={{ flex: 1 }}>{step.text}</Body>
           </Row>
           {step.caution ? (
-            <View style={{ paddingLeft: 36 }}>
-              <Notice tone="danger" icon="warning-outline">
+            <View style={{ paddingLeft: 37 }}>
+              <Notice tone="urgent" icon="warning-outline">
                 {step.caution}
               </Notice>
             </View>

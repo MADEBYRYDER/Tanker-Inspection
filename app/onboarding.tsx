@@ -11,11 +11,11 @@ import {
   Chip,
   Display,
   Field,
-  Muted,
+  Small,
   Notice,
   Row,
   Screen,
-  SectionHeader,
+  SectionTitle,
 } from '../src/ui/components';
 import { spacing } from '../src/ui/theme';
 
@@ -32,6 +32,7 @@ export default function Onboarding() {
   const createHome = useStore((s) => s.createHome);
   const loadRecord = useStore((s) => s.loadRecord);
 
+  const [ownerName, setOwnerName] = useState('');
   const [nickname, setNickname] = useState('');
   const [address, setAddress] = useState('');
   const [city, setCity] = useState('');
@@ -49,6 +50,7 @@ export default function Onboarding() {
   const start = () => {
     createHome({
       nickname: nickname.trim(),
+      ownerName: ownerName.trim() || undefined,
       addressLine1: address.trim() || undefined,
       city: city.trim() || undefined,
       state: state.trim() || undefined,
@@ -77,9 +79,16 @@ export default function Onboarding() {
       </View>
 
       <Card>
-        <SectionHeader title="About the property" />
+        <SectionTitle title="About the property" />
         <Field
-          label="What do you call it?"
+          label="What should we call you?"
+          value={ownerName}
+          onChangeText={setOwnerName}
+          placeholder="Optional"
+          autoCapitalize="words"
+        />
+        <Field
+          label="What do you call the place?"
           value={nickname}
           onChangeText={setNickname}
           placeholder="Home"
@@ -115,17 +124,17 @@ export default function Onboarding() {
             />
           </View>
         </Row>
-        <Muted>
+        <Small>
           Build year and size are optional, but they let the app estimate ages and scale replacement
           costs before you have scanned anything.
-        </Muted>
+        </Small>
       </Card>
 
       <Card>
-        <SectionHeader title="Climate" />
-        <Muted>
+        <SectionTitle title="Climate" />
+        <Small>
           Salt air, humidity, and sun all change how long equipment lasts. This adjusts the estimates.
-        </Muted>
+        </Small>
         <Row wrap gap={spacing.sm}>
           {CLIMATES.map((option) => (
             <Chip
@@ -136,7 +145,7 @@ export default function Onboarding() {
             />
           ))}
         </Row>
-        <Muted>{CLIMATES.find((c) => c.value === climate)?.hint}</Muted>
+        <Small>{CLIMATES.find((c) => c.value === climate)?.hint}</Small>
       </Card>
 
       <Notice icon="lock-closed-outline">
@@ -147,11 +156,11 @@ export default function Onboarding() {
       <Button label="Start — Scan My Home" onPress={start} disabled={!canContinue} icon="camera-outline" full />
 
       <Card>
-        <SectionHeader title="Just looking?" />
-        <Muted>
+        <SectionTitle title="Just looking?" />
+        <Small>
           Load a fully worked example — a 1998 coastal home with a new roof, an aging AC condenser,
           and twelve years of service history — and every screen fills in with real computed numbers.
-        </Muted>
+        </Small>
         <Button label="Explore a sample home" onPress={loadSample} variant="secondary" icon="albums-outline" />
       </Card>
     </Screen>

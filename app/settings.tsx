@@ -10,14 +10,14 @@ import {
   BodyStrong,
   Button,
   Card,
-  Faint,
+  Tertiary,
   Heading,
   KeyValue,
-  Muted,
+  Small,
   Notice,
   Row,
   Screen,
-  SectionHeader,
+  SectionTitle,
   Title,
 } from '../src/ui/components';
 import { spacing, useTheme } from '../src/ui/theme';
@@ -65,7 +65,7 @@ export default function Settings() {
 
       {record ? (
         <Card>
-          <SectionHeader title="This home" />
+          <SectionTitle title="This home" />
           <KeyValue label="Name" value={record.home.nickname} />
           {record.home.addressLine1 ? <KeyValue label="Address" value={record.home.addressLine1} /> : null}
           {record.home.yearBuilt ? <KeyValue label="Built" value={String(record.home.yearBuilt)} /> : null}
@@ -77,17 +77,17 @@ export default function Settings() {
       ) : null}
 
       <Card>
-        <SectionHeader title="AI gateway" />
+        <SectionTitle title="AI gateway" />
         <Row justify="space-between">
           <BodyStrong>Status</BodyStrong>
           <Badge
             label={health === undefined ? 'checking' : health.ok ? 'connected' : 'not connected'}
-            fg={health?.ok ? theme.success : theme.textMuted}
-            bg={health?.ok ? theme.successSoft : theme.surfaceAlt}
+            fg={health?.ok ? theme.sage : theme.textSecondary}
+            bg={health?.ok ? theme.sageSoft : theme.surfaceSunken}
           />
         </Row>
         {health?.model ? <KeyValue label="Model" value={health.model} /> : null}
-        {health && !health.ok ? <Faint>{health.detail}</Faint> : null}
+        {health && !health.ok ? <Tertiary>{health.detail}</Tertiary> : null}
 
         <Body>
           Photo identification, document reading, problem triage, and open-ended assistant questions
@@ -103,32 +103,32 @@ export default function Settings() {
           </Notice>
         ) : null}
 
-        <Faint>
+        <Tertiary>
           Everything that does not need a model — the maintenance schedule, health scoring, cost
           forecasting, and record lookups in the assistant — runs entirely on this device and works
           with no gateway at all.
-        </Faint>
+        </Tertiary>
       </Card>
 
       <Card>
-        <SectionHeader title="Your data" />
+        <SectionTitle title="Your data" />
         <Body>
           Your record is stored on this device. It is uploaded only when you send a photo to be
           identified or share a service request with a contractor.
         </Body>
-        <Faint>
+        <Tertiary>
           There is no account and no sync. That means nothing leaves the phone — and equally, that a
           lost phone loses the record. Export it from the Home Record screen to keep a copy.
-        </Faint>
+        </Tertiary>
         <Button label="Open Home Record" icon="ribbon-outline" variant="secondary" onPress={() => router.push('/record')} />
       </Card>
 
       <Card>
-        <SectionHeader title="Sample data" />
-        <Muted>
+        <SectionTitle title="Sample data" />
+        <Small>
           Replace what is on this device with the worked example — a 1998 coastal home with twelve
           years of history. Useful for seeing every screen filled in.
-        </Muted>
+        </Small>
         <Button
           label="Load the sample home"
           variant="secondary"
@@ -150,20 +150,20 @@ export default function Settings() {
       </Card>
 
       <Card>
-        <SectionHeader title="Danger zone" />
+        <SectionTitle title="Danger zone" />
         <Button label="Erase this home record" variant="danger" icon="trash-outline" onPress={confirmReset} />
       </Card>
 
       <View style={{ gap: spacing.xs, marginTop: spacing.lg }}>
-        <Faint>
+        <Tertiary>
           Lifespan and cost figures are population averages from published component life-expectancy
           data and typical installed pricing. They describe typical equipment, not yours, and are
           labelled as estimates everywhere they appear.
-        </Faint>
-        <Faint>
+        </Tertiary>
+        <Tertiary>
           Nothing in this app is a substitute for a licensed inspection. For anything involving gas,
           combustion, carbon monoxide, electrical work, or structure, get a qualified trade.
-        </Faint>
+        </Tertiary>
       </View>
     </Screen>
   );

@@ -30,6 +30,49 @@ Transfer Record ← Sell Home ← Improve History ← Record Completed Work
 
 ---
 
+## Design direction
+
+Apple Home meets Carfax meets a private-banking app — not a contractor portal.
+
+The homeowner is being asked to trust a $9,000 replacement warning, and the visual
+language software normally uses to signal intelligence (gradients, glowing accents,
+a chat bubble on every screen) reads as marketing. Marketing is the opposite of what
+this product is selling. So: warm off-white ground, near-black text, generous space,
+thin line icons, and colour used **only** to carry status.
+
+| Token | Use |
+|---|---|
+| Muted sage | Healthy |
+| Amber | Needs attention |
+| Red | Genuinely urgent — rare by design, so it still means something |
+| Soft blue | Informational and AI actions, deliberately quiet |
+
+**Navigation is five items with the camera in the middle**, elevated off the bar:
+
+```
+Home  ·  Timeline  ·  ( Scan )  ·  Tasks  ·  Profile
+```
+
+That is the product in one row. See something → scan it.
+
+**One design rule is non-negotiable:** the homeowner should never have to hunt
+through the app to work out what to do next. Every screen answers it.
+
+- **Home** — what needs my attention? Health ring, the specific things wrong, what's
+  coming, then the systems themselves.
+- **Asset** — what do I know about this thing? Age, last service, next task, and a
+  replacement *window* rather than a false-precision date.
+- **Task** — what should I do? DIY steps and materials, or a contractor price and a
+  one-tap request.
+- **Scan** — add information effortlessly. Four large choices, not twenty menu items.
+- **Timeline** — what has happened to my house?
+
+The AI is contextual, never a destination. It appears as one quiet row on the
+dashboard and at the bottom of each asset page, and its answers render as tappable
+task cards rather than paragraphs.
+
+---
+
 ## Running it
 
 ```bash
@@ -85,7 +128,7 @@ say so plainly rather than failing silently.
 ## Verifying it
 
 ```bash
-npm test           # 78 unit tests over the domain engines
+npm test           # 85 unit tests over the domain engines
 npm run typecheck  # app
 npx expo export --platform ios     # proves the whole app bundles
 cd server && npm run typecheck
@@ -97,12 +140,15 @@ cd server && npm run typecheck
 
 ```
 app/                    expo-router screens
-  (tabs)/               home · maintenance · assistant · timeline · costs
-  scan/                 capture → review → save
-  component/[id]        equipment profile
+  (tabs)/               home · timeline · scan · tasks · profile
+  scan/guided           the whole-home walkthrough, with progress
+  scan/equipment        capture → confirm → save
+  component/[id]        asset page
   task/[key]            one task, DIY and hire paths
   problem/ document/    AI capture flows
   service/[id]          request packet + close-out
+  health · costs        score breakdown, cost forecast
+  assistant             contextual, reached from Home and asset pages
   record/               Home Record and transfer copy
 
 src/
@@ -110,7 +156,7 @@ src/
     types.ts            the model, built around Provenance and Visibility
     catalog/            lifespans, replacement costs, the maintenance library
     engine/             age · schedule · health · forecast · timeline ·
-                        warranty · serviceRequest · transfer · query
+                        warranty · serviceRequest · transfer · query · guided
   ai/                   schemas (shared with the server) and the gateway client
   state/                zustand store, persisted to AsyncStorage
   ui/                   theme, components, capture helpers

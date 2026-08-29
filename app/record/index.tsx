@@ -14,13 +14,13 @@ import {
   Chip,
   Divider,
   EmptyState,
-  Faint,
+  Tertiary,
   Heading,
-  Muted,
+  Small,
   Notice,
   Row,
   Screen,
-  SectionHeader,
+  SectionTitle,
   Title,
 } from '../../src/ui/components';
 import { spacing, useTheme } from '../../src/ui/theme';
@@ -57,7 +57,7 @@ export default function HomeRecordScreen() {
   );
 
   if (!record || !report) {
-    return <Screen><Muted>Set up your home first.</Muted></Screen>;
+    return <Screen><Small>Set up your home first.</Small></Screen>;
   }
 
   if (record.components.length === 0 && record.events.length === 0) {
@@ -86,11 +86,11 @@ export default function HomeRecordScreen() {
     <Screen>
       <View style={{ gap: spacing.xs }}>
         <Title>{report.title}</Title>
-        <Muted>{report.subtitle}</Muted>
+        <Small>{report.subtitle}</Small>
       </View>
 
       <Card>
-        <SectionHeader title="Who is this for?" />
+        <SectionTitle title="Who is this for?" />
         <Row gap={spacing.sm} wrap>
           <Chip label="Me" selected={!forTransfer} onPress={() => setForTransfer(false)} />
           <Chip label="A buyer or agent" selected={forTransfer} onPress={() => setForTransfer(true)} />
@@ -105,21 +105,21 @@ export default function HomeRecordScreen() {
             <Row justify="space-between">
               <View style={{ flex: 1 }}>
                 <BodyStrong>Include what you paid</BodyStrong>
-                <Faint>Off by default. Buyers inherit the work, not your invoices.</Faint>
+                <Tertiary>Off by default. Buyers inherit the work, not your invoices.</Tertiary>
               </View>
               <Chip label={includeCosts ? 'Included' : 'Excluded'} selected={includeCosts} onPress={() => setIncludeCosts(!includeCosts)} />
             </Row>
           </>
         ) : (
-          <Faint>Your full record, including costs and private notes.</Faint>
+          <Tertiary>Your full record, including costs and private notes.</Tertiary>
         )}
       </Card>
 
       {report.documentedInvestmentCents !== undefined && report.documentedInvestmentCents > 0 ? (
         <Card>
-          <Faint>DOCUMENTED INVESTMENT</Faint>
+          <Tertiary>DOCUMENTED INVESTMENT</Tertiary>
           <Title>{formatMoney(report.documentedInvestmentCents)}</Title>
-          <Muted>Total of every entry in your record that has a recorded amount.</Muted>
+          <Small>Total of every entry in your record that has a recorded amount.</Small>
         </Card>
       ) : null}
 
@@ -143,7 +143,7 @@ export default function HomeRecordScreen() {
                   key={index}
                   style={{
                     paddingLeft: indented ? spacing.md : 0,
-                    color: indented ? theme.textMuted : theme.text,
+                    color: indented ? theme.textSecondary : theme.text,
                   }}
                 >
                   {line.trim()}
@@ -158,17 +158,17 @@ export default function HomeRecordScreen() {
 
       <Card>
         <Heading>When the house sells</Heading>
-        <Muted>
+        <Small>
           The transfer copy is what moves to the new owner. They inherit the equipment inventory, the
           documented work, and the warranties — so the next person does not start from zero, and the
           record keeps growing rather than resetting every time the house changes hands.
-        </Muted>
+        </Small>
         <Row gap={spacing.xs} wrap>
-          <Badge label="equipment transfers" fg={theme.success} bg={theme.successSoft} />
-          <Badge label="work history transfers" fg={theme.success} bg={theme.successSoft} />
-          <Badge label="warranties transfer" fg={theme.success} bg={theme.successSoft} />
-          <Badge label="your costs do not" fg={theme.textMuted} bg={theme.surfaceAlt} />
-          <Badge label="your notes do not" fg={theme.textMuted} bg={theme.surfaceAlt} />
+          <Badge label="equipment transfers" fg={theme.sage} bg={theme.sageSoft} />
+          <Badge label="work history transfers" fg={theme.sage} bg={theme.sageSoft} />
+          <Badge label="warranties transfer" fg={theme.sage} bg={theme.sageSoft} />
+          <Badge label="your costs do not" fg={theme.textSecondary} bg={theme.surfaceSunken} />
+          <Badge label="your notes do not" fg={theme.textSecondary} bg={theme.surfaceSunken} />
         </Row>
       </Card>
     </Screen>

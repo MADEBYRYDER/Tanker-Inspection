@@ -286,6 +286,8 @@ export interface Provider {
 export interface Home {
   id: string;
   nickname: string;
+  /** Who lives here. Used only to address them; never sent anywhere. */
+  ownerName?: string;
   addressLine1?: string;
   city?: string;
   state?: string;

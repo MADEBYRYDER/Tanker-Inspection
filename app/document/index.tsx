@@ -19,16 +19,16 @@ import {
   Card,
   Chip,
   Divider,
-  Faint,
+  Tertiary,
   Field,
   Heading,
   KeyValue,
   Loading,
-  Muted,
+  Small,
   Notice,
   Row,
   Screen,
-  SectionHeader,
+  SectionTitle,
   Title,
 } from '../../src/ui/components';
 import { radius, spacing, useTheme } from '../../src/ui/theme';
@@ -163,7 +163,7 @@ export default function DocumentCapture() {
     router.replace('/(tabs)/timeline');
   };
 
-  if (!record) return <Screen><Muted>Set up your home first.</Muted></Screen>;
+  if (!record) return <Screen><Small>Set up your home first.</Small></Screen>;
 
   if (draft) {
     const dateValid = !draft.serviceDate || isISODate(draft.serviceDate);
@@ -172,7 +172,7 @@ export default function DocumentCapture() {
         <Title>Check before filing</Title>
 
         {draft.uncertainFields.length > 0 ? (
-          <Notice tone="warning" icon="eye-outline">
+          <Notice tone="attention" icon="eye-outline">
             Worth checking: {draft.uncertainFields.join(', ')}.
           </Notice>
         ) : null}
@@ -182,8 +182,8 @@ export default function DocumentCapture() {
             <Heading>Entry</Heading>
             <Badge
               label={`${Math.round(draft.confidence * 100)}% sure`}
-              fg={draft.confidence >= 0.7 ? theme.success : theme.warning}
-              bg={draft.confidence >= 0.7 ? theme.successSoft : theme.warningSoft}
+              fg={draft.confidence >= 0.7 ? theme.sage : theme.amber}
+              bg={draft.confidence >= 0.7 ? theme.sageSoft : theme.amberSoft}
             />
           </Row>
           <Field label="Title" value={draft.title} onChangeText={(title) => setDraft({ ...draft, title })} placeholder="HVAC serviced" />
@@ -209,14 +209,14 @@ export default function DocumentCapture() {
         </Card>
 
         <Card>
-          <SectionHeader title="File it against" />
-          <Faint>
+          <SectionTitle title="File it against" />
+          <Tertiary>
             {draft.suggestedComponentId
               ? 'The document matched a piece of equipment. Change it if that is wrong.'
               : draft.relatesTo
                 ? `The document mentions "${draft.relatesTo}" but did not clearly match one item. Pick the right one.`
                 : 'Optional. Linking it puts the work in that equipment’s history.'}
-          </Faint>
+          </Tertiary>
           <Row wrap gap={spacing.xs}>
             <Chip label="Not linked" selected={!componentId} onPress={() => setComponentId(undefined)} />
             {record.components.map((component) => (
@@ -231,7 +231,7 @@ export default function DocumentCapture() {
         </Card>
 
         <Card>
-          <SectionHeader title="Type of entry" />
+          <SectionTitle title="Type of entry" />
           <Row wrap gap={spacing.xs}>
             {(['service', 'repair', 'replacement', 'installation', 'inspection', 'improvement'] as TimelineEventType[]).map(
               (type) => (
@@ -248,25 +248,25 @@ export default function DocumentCapture() {
 
         {draft.warranty ? (
           <Card>
-            <SectionHeader title="Warranty found" />
+            <SectionTitle title="Warranty found" />
             <KeyValue label="Provider" value={draft.warranty.provider} />
             <KeyValue label="Type" value={draft.warranty.kind.replace('_', ' ')} />
             {draft.warranty.termYears ? <KeyValue label="Term" value={`${draft.warranty.termYears} years`} /> : null}
-            {draft.warranty.covers ? <Muted>{draft.warranty.covers}</Muted> : null}
-            <Faint>
+            {draft.warranty.covers ? <Small>{draft.warranty.covers}</Small> : null}
+            <Tertiary>
               {componentId
                 ? 'This will be attached to the equipment selected above.'
                 : 'Link this to a piece of equipment above and the warranty will be attached to it.'}
-            </Faint>
+            </Tertiary>
           </Card>
         ) : null}
 
         {draft.lineItems.length > 0 ? (
           <Card>
-            <SectionHeader title="Line items" />
+            <SectionTitle title="Line items" />
             {draft.lineItems.map((item, index) => (
               <Row key={index} justify="space-between" gap={spacing.md}>
-                <Muted style={{ flex: 1 }}>{item.description}</Muted>
+                <Small style={{ flex: 1 }}>{item.description}</Small>
                 <Body>{item.amountCents !== null ? formatMoneyExact(item.amountCents) : '—'}</Body>
               </Row>
             ))}
@@ -277,10 +277,10 @@ export default function DocumentCapture() {
           <Row justify="space-between">
             <View style={{ flex: 1 }}>
               <BodyStrong>Record the amount</BodyStrong>
-              <Faint>
+              <Tertiary>
                 Costs stay private by default when the record transfers to a new owner. Leaving this
                 on only affects your own totals.
-              </Faint>
+              </Tertiary>
             </View>
             <Chip label={includeCost ? 'On' : 'Off'} selected={includeCost} onPress={() => setIncludeCost(!includeCost)} />
           </Row>
@@ -303,14 +303,14 @@ export default function DocumentCapture() {
       </View>
 
       <Card>
-        <SectionHeader title={`Pages (${images.length}/6)`} />
+        <SectionTitle title={`Pages (${images.length}/6)`} />
         {images.length > 0 ? (
           <Row wrap gap={spacing.sm}>
             {images.map((image) => (
               <View key={image.uri}>
                 <Image
                   source={{ uri: image.uri }}
-                  style={{ width: 88, height: 112, borderRadius: radius.md, backgroundColor: theme.surfaceAlt }}
+                  style={{ width: 88, height: 112, borderRadius: radius.md, backgroundColor: theme.surfaceSunken }}
                   contentFit="cover"
                 />
                 <Pressable
@@ -318,13 +318,13 @@ export default function DocumentCapture() {
                   accessibilityLabel="Remove page"
                   style={{ position: 'absolute', top: -6, right: -6, backgroundColor: theme.surface, borderRadius: radius.pill }}
                 >
-                  <Ionicons name="close-circle" size={22} color={theme.danger} />
+                  <Ionicons name="close-circle" size={22} color={theme.red} />
                 </Pressable>
               </View>
             ))}
           </Row>
         ) : (
-          <Muted>Get the whole page in frame, flat and well lit. Multi-page documents can be added as several photos.</Muted>
+          <Small>Get the whole page in frame, flat and well lit. Multi-page documents can be added as several photos.</Small>
         )}
         <Row gap={spacing.sm} wrap>
           <Button
@@ -347,7 +347,7 @@ export default function DocumentCapture() {
         </Row>
       </Card>
 
-      {error ? <Notice tone="danger" icon="alert-circle-outline">{error}</Notice> : null}
+      {error ? <Notice tone="urgent" icon="alert-circle-outline">{error}</Notice> : null}
 
       {busy ? (
         <Loading label="Reading the document…" />

@@ -17,24 +17,24 @@ import {
   Card,
   Chip,
   Divider,
-  Faint,
+  Tertiary,
   Field,
   Heading,
   Loading,
-  Muted,
+  Small,
   Notice,
   Row,
   Screen,
-  SectionHeader,
+  SectionTitle,
   Title,
 } from '../../src/ui/components';
 import { radius, spacing, useTheme } from '../../src/ui/theme';
 
 const URGENCY_STYLE = {
-  emergency: { label: 'Emergency', tone: 'danger' as const, icon: 'alert-circle' as const },
-  urgent: { label: 'Urgent — days, not weeks', tone: 'danger' as const, icon: 'alert-circle-outline' as const },
-  soon: { label: 'Schedule soon', tone: 'warning' as const, icon: 'time-outline' as const },
-  routine: { label: 'Routine', tone: 'success' as const, icon: 'checkmark-circle-outline' as const },
+  emergency: { label: 'Emergency', tone: 'urgent' as const, icon: 'alert-circle' as const },
+  urgent: { label: 'Urgent — days, not weeks', tone: 'urgent' as const, icon: 'alert-circle-outline' as const },
+  soon: { label: 'Schedule soon', tone: 'attention' as const, icon: 'time-outline' as const },
+  routine: { label: 'Routine', tone: 'good' as const, icon: 'checkmark-circle-outline' as const },
 };
 
 /**
@@ -86,7 +86,7 @@ export default function ProblemScanner() {
     }
   };
 
-  if (!record) return <Screen><Muted>Set up your home first.</Muted></Screen>;
+  if (!record) return <Screen><Small>Set up your home first.</Small></Screen>;
 
   if (result) {
     const style = URGENCY_STYLE[result.urgency];
@@ -100,17 +100,17 @@ export default function ProblemScanner() {
 
         {result.recordContext ? (
           <Card>
-            <SectionHeader title="From your home's record" />
+            <SectionTitle title="From your home's record" />
             <Body>{result.recordContext}</Body>
           </Card>
         ) : null}
 
         {result.safeSteps.length > 0 ? (
           <Card>
-            <SectionHeader title="What you can do right now" />
+            <SectionTitle title="What you can do right now" />
             {result.safeSteps.map((step, index) => (
               <Row key={index} gap={spacing.md} align="flex-start">
-                <BodyStrong style={{ color: theme.accent }}>{index + 1}</BodyStrong>
+                <BodyStrong style={{ color: theme.blue }}>{index + 1}</BodyStrong>
                 <Body style={{ flex: 1 }}>{step}</Body>
               </Row>
             ))}
@@ -118,20 +118,20 @@ export default function ProblemScanner() {
         ) : null}
 
         {result.doNotDo.length > 0 ? (
-          <Card tone={theme.dangerSoft}>
-            <SectionHeader title="Do not" />
+          <Card tone={theme.redSoft}>
+            <SectionTitle title="Do not" />
             {result.doNotDo.map((item, index) => (
               <Row key={index} gap={spacing.sm} align="flex-start">
-                <Ionicons name="close-circle" size={16} color={theme.danger} style={{ marginTop: 2 }} />
-                <Body style={{ flex: 1, color: theme.danger }}>{item}</Body>
+                <Ionicons name="close-circle" size={16} color={theme.red} style={{ marginTop: 2 }} />
+                <Body style={{ flex: 1, color: theme.red }}>{item}</Body>
               </Row>
             ))}
           </Card>
         ) : null}
 
         <Card>
-          <SectionHeader title="What it might be" />
-          <Faint>Ranked by what the photos and your record support. None of these is a diagnosis.</Faint>
+          <SectionTitle title="What it might be" />
+          <Tertiary>Ranked by what the photos and your record support. None of these is a diagnosis.</Tertiary>
           {result.possibleCauses.map((cause, index) => (
             <View key={index} style={{ gap: spacing.xs }}>
               {index > 0 ? <Divider /> : null}
@@ -139,23 +139,23 @@ export default function ProblemScanner() {
                 <BodyStrong style={{ flex: 1 }}>{cause.cause}</BodyStrong>
                 <Badge
                   label={cause.likelihood.replace('_', ' ')}
-                  fg={cause.likelihood === 'likely' ? theme.warning : theme.textMuted}
-                  bg={cause.likelihood === 'likely' ? theme.warningSoft : theme.surfaceAlt}
+                  fg={cause.likelihood === 'likely' ? theme.amber : theme.textSecondary}
+                  bg={cause.likelihood === 'likely' ? theme.amberSoft : theme.surfaceSunken}
                 />
               </Row>
-              <Muted>{cause.reasoning}</Muted>
+              <Small>{cause.reasoning}</Small>
             </View>
           ))}
         </Card>
 
         <Card>
-          <SectionHeader title="What a photo can't tell you" />
+          <SectionTitle title="What a photo can't tell you" />
           <Body>{result.limitations}</Body>
         </Card>
 
         {result.professionalNeeded ? (
           <Card>
-            <SectionHeader title="This needs a professional" />
+            <SectionTitle title="This needs a professional" />
             <Body>
               {result.professionalTrade
                 ? `Get a ${result.professionalTrade} to look at it.`
@@ -215,7 +215,7 @@ export default function ProblemScanner() {
 
       {record.components.length > 0 ? (
         <Card>
-          <SectionHeader title="Which equipment? (optional)" />
+          <SectionTitle title="Which equipment? (optional)" />
           <Row wrap gap={spacing.xs}>
             {record.components.map((component) => (
               <Chip
@@ -226,19 +226,19 @@ export default function ProblemScanner() {
               />
             ))}
           </Row>
-          <Faint>Linking it pulls that item's age, model, and service history into the analysis.</Faint>
+          <Tertiary>Linking it pulls that item's age, model, and service history into the analysis.</Tertiary>
         </Card>
       ) : null}
 
       <Card>
-        <SectionHeader title={`Photos (${images.length}/6)`} />
+        <SectionTitle title={`Photos (${images.length}/6)`} />
         {images.length > 0 ? (
           <Row wrap gap={spacing.sm}>
             {images.map((image) => (
               <View key={image.uri}>
                 <Image
                   source={{ uri: image.uri }}
-                  style={{ width: 88, height: 88, borderRadius: radius.md, backgroundColor: theme.surfaceAlt }}
+                  style={{ width: 88, height: 88, borderRadius: radius.md, backgroundColor: theme.surfaceSunken }}
                   contentFit="cover"
                 />
                 <Pressable
@@ -246,13 +246,13 @@ export default function ProblemScanner() {
                   accessibilityLabel="Remove photo"
                   style={{ position: 'absolute', top: -6, right: -6, backgroundColor: theme.surface, borderRadius: radius.pill }}
                 >
-                  <Ionicons name="close-circle" size={22} color={theme.danger} />
+                  <Ionicons name="close-circle" size={22} color={theme.red} />
                 </Pressable>
               </View>
             ))}
           </Row>
         ) : (
-          <Muted>Photos help a lot, but a description alone still works.</Muted>
+          <Small>Photos help a lot, but a description alone still works.</Small>
         )}
         <Row gap={spacing.sm} wrap>
           <Button
@@ -275,7 +275,7 @@ export default function ProblemScanner() {
         </Row>
       </Card>
 
-      {error ? <Notice tone="danger" icon="alert-circle-outline">{error}</Notice> : null}
+      {error ? <Notice tone="urgent" icon="alert-circle-outline">{error}</Notice> : null}
 
       {busy ? (
         <Loading label="Checking this against your home's record…" />
@@ -297,12 +297,12 @@ export default function ProblemScanner() {
         </Notice>
       ) : null}
 
-      <Card tone={theme.dangerSoft}>
+      <Card tone={theme.redSoft}>
         <Row gap={spacing.sm} align="flex-start">
-          <Ionicons name="warning" size={18} color={theme.danger} style={{ marginTop: 1 }} />
+          <Ionicons name="warning" size={18} color={theme.red} style={{ marginTop: 1 }} />
           <View style={{ flex: 1, gap: spacing.xs }}>
-            <BodyStrong style={{ color: theme.danger }}>Do not use this for an emergency</BodyStrong>
-            <Body style={{ color: theme.danger }}>
+            <BodyStrong style={{ color: theme.red }}>Do not use this for an emergency</BodyStrong>
+            <Body style={{ color: theme.red }}>
               If you smell gas, see smoke or fire, have water you cannot shut off, see arcing or
               exposed wiring, or a carbon monoxide alarm is sounding — leave, then call emergency
               services or your utility. Do not wait for an analysis.

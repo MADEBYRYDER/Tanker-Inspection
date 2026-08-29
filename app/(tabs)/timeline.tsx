@@ -8,22 +8,22 @@ import { formatMoney } from '../../src/core/money';
 import type { TimelineEventType } from '../../src/core/types';
 import { useHomeRecord } from '../../src/state/store';
 import {
-  Badge,
   Body,
   BodyStrong,
   Button,
   Card,
+  Divider,
   EmptyState,
-  Faint,
   Heading,
-  Muted,
   Row,
   Screen,
+  Small,
+  Tertiary,
   Title,
 } from '../../src/ui/components';
-import { spacing, useTheme } from '../../src/ui/theme';
+import { radius, spacing, useTheme } from '../../src/ui/theme';
 
-const EVENT_ICON: Record<TimelineEventType, keyof typeof Ionicons.glyphMap> = {
+const EVENT_ICON: Record<TimelineEventType, string> = {
   installation: 'add-circle-outline',
   service: 'construct-outline',
   repair: 'build-outline',
@@ -33,6 +33,14 @@ const EVENT_ICON: Record<TimelineEventType, keyof typeof Ionicons.glyphMap> = {
   issue: 'alert-circle-outline',
 };
 
+/**
+ * The Home Timeline.
+ *
+ * Everything that has happened to the house, newest first, with a year total. This
+ * is the artefact that eventually transfers to a new owner, so it reads as a record
+ * rather than an activity feed — dates on the left, what happened in the middle,
+ * what it cost on the right.
+ */
 export default function Timeline() {
   const theme = useTheme();
   const router = useRouter();
@@ -44,116 +52,104 @@ export default function Timeline() {
     [record],
   );
 
-  if (!record) return <Screen><Muted>Set up your home first.</Muted></Screen>;
+  if (!record) return <Screen><Small>Set up your home first.</Small></Screen>;
 
   if (groups.length === 0) {
     return (
       <Screen>
-        <Title>Home Timeline</Title>
+        <Title>Timeline</Title>
         <EmptyState
           icon="time-outline"
           title="Nothing recorded yet"
-          body="Photograph an invoice, a receipt, or a warranty and it will be read, dated, and filed against the right equipment. Over time this becomes the history that transfers with the house."
-          action={
-            <Button label="Add a document" icon="document-attach-outline" onPress={() => router.push('/document')} />
-          }
+          body="Photograph an invoice, receipt, or warranty and it will be read, dated, and filed against the right equipment. Over time this becomes the history that transfers with the house."
+          action={<Button label="Add receipt" icon="receipt-outline" onPress={() => router.push('/document')} />}
         />
       </Screen>
     );
   }
 
-  const totalDocumented = record.events.reduce((sum, e) => sum + (e.costCents ?? 0), 0);
+  const total = record.events.reduce((sum, e) => sum + (e.costCents ?? 0), 0);
 
   return (
-    <Screen>
-      <View style={{ gap: spacing.xs }}>
-        <Title>Home Timeline</Title>
-        <Muted>
-          {record.events.length} recorded {record.events.length === 1 ? 'entry' : 'entries'} ·{' '}
-          {formatMoney(totalDocumented)} documented
-        </Muted>
+    <Screen gap={spacing.xl}>
+      <View style={{ gap: 4, marginTop: spacing.sm }}>
+        <Title>Timeline</Title>
+        <Small>
+          {record.events.length} {record.events.length === 1 ? 'entry' : 'entries'} ·{' '}
+          {formatMoney(total)} documented
+        </Small>
       </View>
 
-      <Row gap={spacing.sm} wrap>
-        <Button label="Add a document" icon="document-attach-outline" onPress={() => router.push('/document')} />
-        <Button
-          label="Home Record"
-          icon="ribbon-outline"
-          variant="secondary"
-          onPress={() => router.push('/record')}
-        />
-      </Row>
-
       {groups.map((group) => (
-        <View key={group.year} style={{ gap: spacing.sm }}>
-          <Row justify="space-between">
+        <View key={group.year} style={{ gap: spacing.md }}>
+          <Row justify="space-between" align="flex-end">
             <Heading>{group.year}</Heading>
-            <Muted>{group.totalCents > 0 ? formatMoney(group.totalCents) : '—'}</Muted>
+            <Small>{group.totalCents > 0 ? formatMoney(group.totalCents) : '—'}</Small>
           </Row>
 
-          {group.events.map((event) => (
-            <Card
-              key={event.id}
-              onPress={
-                event.componentId ? () => router.push(`/component/${event.componentId}`) : undefined
-              }
-            >
-              <Row justify="space-between" align="flex-start" gap={spacing.md}>
-                <Row gap={spacing.md} align="flex-start" style={{ flex: 1 }}>
-                  <Ionicons
-                    name={EVENT_ICON[event.type]}
-                    size={19}
-                    color={theme.textMuted}
-                    style={{ marginTop: 2 }}
-                  />
-                  <View style={{ flex: 1, gap: 3 }}>
-                    <BodyStrong>{event.title}</BodyStrong>
-                    <Faint>
-                      {formatDate(event.date)}
-                      {event.vendor ? ` · ${event.vendor}` : ''}
-                      {event.componentId ? ` · ${componentName.get(event.componentId) ?? ''}` : ''}
-                    </Faint>
-                    {event.description ? (
-                      <Body style={{ color: theme.textMuted, marginTop: 2 }} numberOfLines={3}>
-                        {event.description}
-                      </Body>
-                    ) : null}
-                    <Row gap={spacing.xs} wrap style={{ marginTop: 2 }}>
-                      {event.source === 'contractor' ? (
-                        <Badge label="from contractor" fg={theme.info} bg={theme.infoSoft} />
+          <Card padding={spacing.lg}>
+            {group.events.map((event, index) => (
+              <View key={event.id} style={{ gap: spacing.md }}>
+                {index > 0 ? <Divider inset={48} /> : null}
+                <Row
+                  gap={spacing.md}
+                  align="flex-start"
+                  justify="space-between"
+                  style={{ paddingVertical: 2 }}
+                >
+                  <Row gap={spacing.md} style={{ flex: 1 }} align="flex-start">
+                    <View
+                      style={{
+                        width: 36,
+                        height: 36,
+                        borderRadius: radius.md,
+                        backgroundColor: theme.surfaceSunken,
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                    >
+                      <Ionicons
+                        name={(EVENT_ICON[event.type] ?? 'ellipse-outline') as never}
+                        size={17}
+                        color={theme.textSecondary}
+                      />
+                    </View>
+                    <View style={{ flex: 1, gap: 2 }}>
+                      <BodyStrong>{event.title}</BodyStrong>
+                      <Small>
+                        {formatDate(event.date)}
+                        {event.vendor ? ` · ${event.vendor}` : ''}
+                      </Small>
+                      {event.componentId ? (
+                        <Tertiary>{componentName.get(event.componentId) ?? ''}</Tertiary>
                       ) : null}
-                      {event.source === 'ai_document' ? (
-                        <Badge label="read from document" fg={theme.info} bg={theme.infoSoft} />
+                      {event.description ? (
+                        <Body
+                          numberOfLines={2}
+                          style={{ color: theme.textSecondary, fontSize: 14, marginTop: 2 }}
+                        >
+                          {event.description}
+                        </Body>
                       ) : null}
-                      {event.visibility === 'private' ? (
-                        <Badge label="private" fg={theme.textMuted} bg={theme.surfaceAlt} />
-                      ) : null}
-                      {event.documentIds.length > 0 ? (
-                        <Badge
-                          label={`${event.documentIds.length} doc${event.documentIds.length === 1 ? '' : 's'}`}
-                          fg={theme.textMuted}
-                          bg={theme.surfaceAlt}
-                        />
-                      ) : null}
-                    </Row>
-                  </View>
+                    </View>
+                  </Row>
+                  {event.costCents !== undefined ? (
+                    <BodyStrong>{formatMoney(event.costCents)}</BodyStrong>
+                  ) : null}
                 </Row>
-                {event.costCents !== undefined ? (
-                  <BodyStrong>{formatMoney(event.costCents)}</BodyStrong>
-                ) : null}
-              </Row>
-            </Card>
-          ))}
+              </View>
+            ))}
+          </Card>
         </View>
       ))}
 
-      <Card>
-        <Heading>What transfers, and what doesn't</Heading>
-        <Muted>
-          The work itself — what was done, when, and by whom — moves to the next owner if you sell.
-          What you paid does not, unless you choose to include it. Anything you mark private stays
-          with you entirely.
-        </Muted>
+      <Card tone={theme.surfaceSunken}>
+        <BodyStrong>What transfers when you sell</BodyStrong>
+        <Small>
+          The work itself — what was done, when, and by whom — moves to the next owner. What you paid
+          does not, unless you choose to include it. Anything marked private stays with you entirely.
+        </Small>
+        <Button label="Open Home Record" variant="quiet" size="sm" onPress={() => router.push('/record')} />
       </Card>
     </Screen>
   );
