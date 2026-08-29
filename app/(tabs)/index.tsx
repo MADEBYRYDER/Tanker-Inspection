@@ -456,7 +456,6 @@ function SystemTile({
       style={{
         // Two across, accounting for the 12pt gutter.
         width: '48%',
-        flexGrow: 1,
         backgroundColor: theme.surface,
         borderRadius: radius.lg,
         borderWidth: StyleSheet.hairlineWidth,

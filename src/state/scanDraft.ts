@@ -28,6 +28,8 @@ interface ScanDraftState {
 
   addImages: (images: CapturedImage[]) => void;
   removeImage: (uri: string) => void;
+  /** Replaces the whole set — what the shared photo tray hands back. */
+  setImages: (images: CapturedImage[]) => void;
   setHints: (hints: { categoryHint?: string; locationHint?: string }) => void;
   setResults: (payload: { results: DraftIdentification[]; guidance: string; unreadable: boolean }) => void;
   updateResult: (index: number, patch: Partial<DraftIdentification>) => void;
@@ -50,6 +52,8 @@ export const useScanDraft = create<ScanDraftState>((set) => ({
     })),
 
   removeImage: (uri) => set((state) => ({ images: state.images.filter((i) => i.uri !== uri) })),
+
+  setImages: (images) => set({ images: images.slice(0, 6) }),
 
   setHints: (hints) => set((state) => ({ ...state, ...hints })),
 

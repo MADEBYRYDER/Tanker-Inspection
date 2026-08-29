@@ -1,8 +1,6 @@
-import { Ionicons } from '@expo/vector-icons';
-import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
-import { Pressable, View } from 'react-native';
+import { View } from 'react-native';
 import { GatewayNotConfiguredError, extractDocument, isGatewayConfigured } from '../../src/ai/client';
 import type { DocumentExtraction } from '../../src/ai/schemas';
 import { isISODate, today } from '../../src/core/dates';
@@ -10,9 +8,9 @@ import { buildGroundingContext } from '../../src/core/engine/query';
 import { formatMoneyExact } from '../../src/core/money';
 import type { TimelineEventType } from '../../src/core/types';
 import { useHomeRecord, useStore } from '../../src/state/store';
-import { capturePhoto, pickPhotos, type CapturedImage } from '../../src/ui/capture';
+import { PhotoTray, canSubmit } from '../../src/ui/PhotoTray';
+import { toPayload, type CapturedImage } from '../../src/ui/capture';
 import {
-  Badge,
   Body,
   BodyStrong,
   Button,
@@ -25,13 +23,15 @@ import {
   KeyValue,
   Loading,
   Small,
+  Label,
   Notice,
+  StatusPill,
   Row,
   Screen,
   SectionTitle,
   Title,
 } from '../../src/ui/components';
-import { radius, spacing, useTheme } from '../../src/ui/theme';
+import { spacing, useTheme } from '../../src/ui/theme';
 
 /**
  * Document capture.
@@ -64,7 +64,7 @@ export default function DocumentCapture() {
     setError(undefined);
     try {
       const result = await extractDocument({
-        images: images.map(({ data, mediaType, role }) => ({ data, mediaType, role })),
+        images: images.map(toPayload),
         recordContext: buildGroundingContext(record, { asOf: today() }),
       });
       setDraft(result);
@@ -180,10 +180,9 @@ export default function DocumentCapture() {
         <Card>
           <Row justify="space-between">
             <Heading>Entry</Heading>
-            <Badge
+            <StatusPill
+              status={draft.confidence >= 0.7 ? 'good' : 'attention'}
               label={`${Math.round(draft.confidence * 100)}% sure`}
-              fg={draft.confidence >= 0.7 ? theme.sage : theme.amber}
-              bg={draft.confidence >= 0.7 ? theme.sageSoft : theme.amberSoft}
             />
           </Row>
           <Field label="Title" value={draft.title} onChangeText={(title) => setDraft({ ...draft, title })} placeholder="HVAC serviced" />
@@ -303,51 +302,27 @@ export default function DocumentCapture() {
       </View>
 
       <Card>
-        <SectionTitle title={`Pages (${images.length}/6)`} />
-        {images.length > 0 ? (
-          <Row wrap gap={spacing.sm}>
-            {images.map((image) => (
-              <View key={image.uri}>
-                <Image
-                  source={{ uri: image.uri }}
-                  style={{ width: 88, height: 112, borderRadius: radius.md, backgroundColor: theme.surfaceSunken }}
-                  contentFit="cover"
-                />
-                <Pressable
-                  onPress={() => setImages((prev) => prev.filter((i) => i.uri !== image.uri))}
-                  accessibilityLabel="Remove page"
-                  style={{ position: 'absolute', top: -6, right: -6, backgroundColor: theme.surface, borderRadius: radius.pill }}
-                >
-                  <Ionicons name="close-circle" size={22} color={theme.red} />
-                </Pressable>
-              </View>
-            ))}
-          </Row>
-        ) : (
-          <Small>Get the whole page in frame, flat and well lit. Multi-page documents can be added as several photos.</Small>
-        )}
-        <Row gap={spacing.sm} wrap>
-          <Button
-            label="Photograph it"
-            icon="camera-outline"
-            onPress={async () => {
-              const photo = await capturePhoto('document page');
-              if (photo) setImages((prev) => [...prev, photo].slice(0, 6));
-            }}
-          />
-          <Button
-            label="From library"
-            icon="images-outline"
-            variant="secondary"
-            onPress={async () => {
-              const photos = await pickPhotos('document page', 4);
-              if (photos.length > 0) setImages((prev) => [...prev, ...photos].slice(0, 6));
-            }}
-          />
-        </Row>
+        <Label>Pages</Label>
+        <PhotoTray
+          images={images}
+          onChange={setImages}
+          role="document page"
+          captureLabel="Photograph it"
+          aspect="page"
+          emptyHint="Get the whole page in frame, flat and well lit. Multi-page documents can be added as several photos, in order."
+        />
       </Card>
 
-      {error ? <Notice tone="urgent" icon="alert-circle-outline">{error}</Notice> : null}
+      {error ? (
+        <Card tone={theme.redSoft}>
+          <Small style={{ color: theme.red }}>{error}</Small>
+          <Row gap={spacing.sm}>
+            <Button label="Try again" size="sm" onPress={() => void extract()} />
+            <Button label="Enter by hand" size="sm" variant="secondary" onPress={startBlank} />
+          </Row>
+          <Tertiary>Your photos are still here — nothing was lost.</Tertiary>
+        </Card>
+      ) : null}
 
       {busy ? (
         <Loading label="Reading the document…" />
@@ -356,12 +331,20 @@ export default function DocumentCapture() {
           <Button
             label="Read it"
             icon="sparkles-outline"
+            size="lg"
             onPress={() => void extract()}
-            disabled={images.length === 0 || !isGatewayConfigured()}
+            disabled={!canSubmit(images) || !isGatewayConfigured()}
           />
-          <Button label="Enter by hand" icon="create-outline" variant="secondary" onPress={startBlank} />
+          <Button label="By hand" size="lg" variant="secondary" onPress={startBlank} />
         </Row>
       )}
+
+      {!isGatewayConfigured() ? (
+        <Notice tone="neutral" icon="cloud-offline-outline">
+          Reading documents needs an AI gateway, which isn't configured on this build. Entering an
+          entry by hand files it identically.
+        </Notice>
+      ) : null}
     </Screen>
   );
 }

@@ -1,50 +1,74 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
-import { Pressable, View } from 'react-native';
+import { Linking, Platform, Text, View } from 'react-native';
 import { GatewayNotConfiguredError, isGatewayConfigured, triageProblem } from '../../src/ai/client';
 import type { ProblemTriage } from '../../src/ai/schemas';
 import { today } from '../../src/core/dates';
 import { buildGroundingContext } from '../../src/core/engine/query';
 import { useHomeRecord } from '../../src/state/store';
-import { capturePhoto, pickPhotos, type CapturedImage } from '../../src/ui/capture';
+import { PhotoTray, canSubmit } from '../../src/ui/PhotoTray';
+import { toPayload, type CapturedImage } from '../../src/ui/capture';
 import {
-  Badge,
   Body,
   BodyStrong,
   Button,
   Card,
   Chip,
   Divider,
-  Tertiary,
+  Enter,
   Field,
   Heading,
+  IconTile,
+  Label,
   Loading,
-  Small,
-  Notice,
   Row,
   Screen,
-  SectionTitle,
+  Small,
+  StatusPill,
+  Tertiary,
   Title,
+  Touchable,
 } from '../../src/ui/components';
-import { radius, spacing, useTheme } from '../../src/ui/theme';
+import { radius, spacing, toneFor, type, useTheme, type StatusKey } from '../../src/ui/theme';
 
-const URGENCY_STYLE = {
-  emergency: { label: 'Emergency', tone: 'urgent' as const, icon: 'alert-circle' as const },
-  urgent: { label: 'Urgent — days, not weeks', tone: 'urgent' as const, icon: 'alert-circle-outline' as const },
-  soon: { label: 'Schedule soon', tone: 'attention' as const, icon: 'time-outline' as const },
-  routine: { label: 'Routine', tone: 'good' as const, icon: 'checkmark-circle-outline' as const },
+const URGENCY: Record<
+  ProblemTriage['urgency'],
+  { label: string; status: StatusKey; icon: keyof typeof Ionicons.glyphMap; blurb: string }
+> = {
+  emergency: {
+    label: 'Emergency',
+    status: 'urgent',
+    icon: 'alert-circle',
+    blurb: 'Act now, before anything else',
+  },
+  urgent: {
+    label: 'Urgent',
+    status: 'urgent',
+    icon: 'alert-circle-outline',
+    blurb: 'Days, not weeks',
+  },
+  soon: { label: 'Soon', status: 'attention', icon: 'time-outline', blurb: 'Schedule in a few weeks' },
+  routine: {
+    label: 'Routine',
+    status: 'good',
+    icon: 'checkmark-circle-outline',
+    blurb: 'Monitor, or handle at leisure',
+  },
 };
 
 /**
  * The problem scanner.
  *
- * Framed as triage throughout, in the copy as well as the prompt. A photograph
+ * Framed as triage throughout, in the copy as much as the prompt. A photograph
  * cannot establish what is behind a wall or what a component measures under load,
  * and an app that implies otherwise will eventually talk somebody out of a call
- * they needed to make. The screen leads with urgency and closes with an explicit
- * statement of what could not be determined.
+ * they needed to make.
+ *
+ * The emergency guidance sits at the *top* of the input screen, not the bottom.
+ * Someone who can smell gas should not have to scroll past a photo picker and a
+ * text field to be told to leave the house — and they certainly should not wait
+ * for a model round-trip. That placement is a safety decision, not a layout one.
  */
 export default function ProblemScanner() {
   const theme = useTheme();
@@ -66,7 +90,7 @@ export default function ProblemScanner() {
     try {
       const component = record.components.find((c) => c.id === componentId);
       const triage = await triageProblem({
-        images: images.map(({ data, mediaType, role }) => ({ data, mediaType, role })),
+        images: images.map(toPayload),
         description: component
           ? `Regarding the ${component.name} (${component.type}): ${description.trim()}`
           : description.trim(),
@@ -88,194 +112,261 @@ export default function ProblemScanner() {
 
   if (!record) return <Screen><Small>Set up your home first.</Small></Screen>;
 
+  /* ------------------------------ Result ------------------------------- */
   if (result) {
-    const style = URGENCY_STYLE[result.urgency];
+    const urgency = URGENCY[result.urgency];
+    const tone = toneFor(theme, urgency.status);
     return (
-      <Screen>
-        <Notice tone={style.tone} icon={style.icon}>
-          {style.label} — {result.urgencyReason}
-        </Notice>
-
-        <Title>{result.headline}</Title>
-
-        {result.recordContext ? (
-          <Card>
-            <SectionTitle title="From your home's record" />
-            <Body>{result.recordContext}</Body>
+      <Screen gap={spacing.lg}>
+        <Enter>
+          <Card tone={tone.bg} raised={2} bordered={false}>
+            <Row gap={spacing.md}>
+              <IconTile icon={urgency.icon} status={urgency.status} size={46} />
+              <View style={{ flex: 1, gap: 2 }}>
+                <Text style={[type.label, { color: tone.fg }]}>{urgency.label.toUpperCase()}</Text>
+                <Text style={[type.subheading, { color: tone.fg }]}>{urgency.blurb}</Text>
+              </View>
+            </Row>
+            <Text style={[type.small, { color: tone.fg }]}>{result.urgencyReason}</Text>
+            {result.urgency === 'emergency' ? (
+              <Button
+                label="Call emergency services"
+                icon="call-outline"
+                tone={theme.red}
+                full
+                onPress={() => void Linking.openURL(Platform.OS === 'ios' ? 'tel:911' : 'tel:911')}
+              />
+            ) : null}
           </Card>
-        ) : null}
+        </Enter>
+
+        <Enter index={1}>
+          <Title>{result.headline}</Title>
+        </Enter>
 
         {result.safeSteps.length > 0 ? (
-          <Card>
-            <SectionTitle title="What you can do right now" />
-            {result.safeSteps.map((step, index) => (
-              <Row key={index} gap={spacing.md} align="flex-start">
-                <BodyStrong style={{ color: theme.blue }}>{index + 1}</BodyStrong>
-                <Body style={{ flex: 1 }}>{step}</Body>
-              </Row>
-            ))}
-          </Card>
+          <Enter index={2}>
+            <Card>
+              <Label>Do this now</Label>
+              {result.safeSteps.map((step, index) => (
+                <Row key={index} gap={spacing.md} align="flex-start">
+                  <View
+                    style={{
+                      width: 24,
+                      height: 24,
+                      borderRadius: radius.pill,
+                      backgroundColor: theme.surfaceSunken,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    <Text style={{ fontSize: 12.5, fontWeight: '700', color: theme.textSecondary }}>
+                      {index + 1}
+                    </Text>
+                  </View>
+                  <Body style={{ flex: 1 }}>{step}</Body>
+                </Row>
+              ))}
+            </Card>
+          </Enter>
         ) : null}
 
         {result.doNotDo.length > 0 ? (
-          <Card tone={theme.redSoft}>
-            <SectionTitle title="Do not" />
-            {result.doNotDo.map((item, index) => (
-              <Row key={index} gap={spacing.sm} align="flex-start">
-                <Ionicons name="close-circle" size={16} color={theme.red} style={{ marginTop: 2 }} />
-                <Body style={{ flex: 1, color: theme.red }}>{item}</Body>
-              </Row>
-            ))}
-          </Card>
+          <Enter index={3}>
+            <Card tone={theme.redSoft} bordered={false}>
+              <Label color={theme.red}>Do not</Label>
+              {result.doNotDo.map((item, index) => (
+                <Row key={index} gap={spacing.sm} align="flex-start">
+                  <Ionicons name="close-circle" size={16} color={theme.red} style={{ marginTop: 2 }} />
+                  <Text style={[type.small, { flex: 1, color: theme.red }]}>{item}</Text>
+                </Row>
+              ))}
+            </Card>
+          </Enter>
         ) : null}
 
-        <Card>
-          <SectionTitle title="What it might be" />
-          <Tertiary>Ranked by what the photos and your record support. None of these is a diagnosis.</Tertiary>
-          {result.possibleCauses.map((cause, index) => (
-            <View key={index} style={{ gap: spacing.xs }}>
-              {index > 0 ? <Divider /> : null}
-              <Row justify="space-between" gap={spacing.sm}>
-                <BodyStrong style={{ flex: 1 }}>{cause.cause}</BodyStrong>
-                <Badge
-                  label={cause.likelihood.replace('_', ' ')}
-                  fg={cause.likelihood === 'likely' ? theme.amber : theme.textSecondary}
-                  bg={cause.likelihood === 'likely' ? theme.amberSoft : theme.surfaceSunken}
-                />
-              </Row>
-              <Small>{cause.reasoning}</Small>
-            </View>
-          ))}
-        </Card>
+        {result.recordContext ? (
+          <Enter index={4}>
+            <Card>
+              <Label>From your home's record</Label>
+              <Body>{result.recordContext}</Body>
+            </Card>
+          </Enter>
+        ) : null}
 
-        <Card>
-          <SectionTitle title="What a photo can't tell you" />
-          <Body>{result.limitations}</Body>
-        </Card>
+        <Enter index={5}>
+          <Card>
+            <Label>What it might be</Label>
+            <Tertiary>Ranked by what the photos and your record support. None is a diagnosis.</Tertiary>
+            {result.possibleCauses.map((cause, index) => (
+              <View key={index} style={{ gap: spacing.sm }}>
+                {index > 0 ? <Divider /> : null}
+                <Row justify="space-between" gap={spacing.sm} align="flex-start">
+                  <BodyStrong style={{ flex: 1 }}>{cause.cause}</BodyStrong>
+                  <StatusPill
+                    status={cause.likelihood === 'likely' ? 'attention' : 'neutral'}
+                    label={cause.likelihood.replace('_', ' ')}
+                  />
+                </Row>
+                <Small>{cause.reasoning}</Small>
+              </View>
+            ))}
+          </Card>
+        </Enter>
+
+        <Enter index={6}>
+          <Card tone={theme.surfaceSunken} raised={0}>
+            <Label>What a photo can't tell you</Label>
+            <Small>{result.limitations}</Small>
+          </Card>
+        </Enter>
 
         {result.professionalNeeded ? (
-          <Card>
-            <SectionTitle title="This needs a professional" />
-            <Body>
-              {result.professionalTrade
-                ? `Get a ${result.professionalTrade} to look at it.`
-                : 'Get a qualified trade to look at it in person.'}
-            </Body>
-            <Button
-              label="Create a service request"
-              icon="paper-plane-outline"
-              onPress={() =>
-                router.push({
-                  pathname: '/service/new',
-                  params: {
-                    componentId: result.relatedComponentIds[0] ?? componentId ?? '',
-                    title: result.headline,
-                    problem: description,
-                    urgency: result.urgency === 'emergency' || result.urgency === 'urgent' ? 'emergency' : 'soon',
-                  },
-                })
-              }
-            />
-          </Card>
+          <Enter index={7}>
+            <Card raised={2}>
+              <Label>This needs a professional</Label>
+              <Body>
+                {result.professionalTrade
+                  ? `Get a ${result.professionalTrade} to look at it in person.`
+                  : 'Get a qualified trade to look at it in person.'}
+              </Body>
+              <Button
+                label="Create a service request"
+                icon="paper-plane-outline"
+                full
+                onPress={() =>
+                  router.push({
+                    pathname: '/service/new',
+                    params: {
+                      componentId: result.relatedComponentIds[0] ?? componentId ?? '',
+                      title: result.headline,
+                      problem: description,
+                      urgency:
+                        result.urgency === 'emergency' || result.urgency === 'urgent'
+                          ? 'emergency'
+                          : 'soon',
+                    },
+                  })
+                }
+              />
+            </Card>
+          </Enter>
         ) : null}
 
         <Row gap={spacing.sm} wrap>
-          <Button label="Start over" variant="secondary" icon="refresh-outline" onPress={() => { setResult(undefined); setImages([]); setDescription(''); }} />
+          <Button
+            label="Start over"
+            variant="secondary"
+            icon="refresh-outline"
+            onPress={() => {
+              setResult(undefined);
+              setImages([]);
+              setDescription('');
+            }}
+          />
           <Button label="Back home" variant="ghost" onPress={() => router.replace('/(tabs)')} />
         </Row>
       </Screen>
     );
   }
 
+  /* ------------------------------- Input -------------------------------- */
   return (
-    <Screen>
-      <View style={{ gap: spacing.sm }}>
-        <Title>Something's wrong</Title>
-        <Body>
-          Describe what you are seeing or hearing and add photos. The app checks it against your
-          home's actual equipment and history to work out how urgent it is and what to do next.
-        </Body>
-      </View>
+    <Screen gap={spacing.lg}>
+      {/* First thing on the screen, before any input. Someone who can smell gas
+          should not have to scroll to be told to leave. */}
+      <Enter>
+        <Touchable
+          onPress={() => void Linking.openURL('tel:911')}
+          haptic="medium"
+          style={{
+            backgroundColor: theme.redSoft,
+            borderRadius: radius.lg,
+            padding: spacing.lg,
+            gap: spacing.sm,
+          }}
+        >
+          <Row gap={spacing.md} align="flex-start">
+            <Ionicons name="warning" size={20} color={theme.red} style={{ marginTop: 1 }} />
+            <View style={{ flex: 1, gap: 4 }}>
+              <Text style={[type.bodyStrong, { color: theme.red }]}>Don't use this in an emergency</Text>
+              <Text style={[type.small, { color: theme.red }]}>
+                Gas smell, smoke or fire, water you can't shut off, arcing or exposed wiring, or a
+                carbon monoxide alarm — leave, then call emergency services or your utility. Don't
+                wait for an analysis.
+              </Text>
+              <Row gap={4}>
+                <Text style={[type.smallStrong, { color: theme.red }]}>Tap to call 911</Text>
+                <Ionicons name="call-outline" size={13} color={theme.red} />
+              </Row>
+            </View>
+          </Row>
+        </Touchable>
+      </Enter>
 
-      <Notice icon="information-circle-outline">
-        This is triage, not a diagnosis. It helps you decide how worried to be and what to do in the
-        next hour — it cannot see inside walls or measure anything.
-      </Notice>
+      <Enter index={1}>
+        <View style={{ gap: spacing.sm }}>
+          <Heading>What's happening?</Heading>
+          <Body>
+            Describe what you're seeing or hearing. The app checks it against your home's actual
+            equipment and history to work out how urgent it is and what to do next.
+          </Body>
+        </View>
+      </Enter>
 
-      <Card>
-        <Field
-          label="What's happening?"
-          value={description}
-          onChangeText={setDescription}
-          multiline
-          placeholder="Water pooling under the water heater since this morning. No hot water. There's a hissing sound."
-          hint="More detail gives a better read — when it started, what changed, any sounds or smells."
-        />
-      </Card>
+      <Enter index={2}>
+        <Card>
+          <Field
+            label="Describe the problem"
+            value={description}
+            onChangeText={setDescription}
+            multiline
+            placeholder="Water pooling under the water heater since this morning. No hot water. There's a hissing sound."
+            hint="More detail gives a better read — when it started, what changed, any sounds or smells."
+          />
+        </Card>
+      </Enter>
+
+      <Enter index={3}>
+        <Card>
+          <Label>Photos</Label>
+          <PhotoTray
+            images={images}
+            onChange={setImages}
+            role="the problem"
+            captureLabel="Photograph it"
+            emptyHint="Photos help a lot, but a description alone still works."
+          />
+        </Card>
+      </Enter>
 
       {record.components.length > 0 ? (
-        <Card>
-          <SectionTitle title="Which equipment? (optional)" />
-          <Row wrap gap={spacing.xs}>
-            {record.components.map((component) => (
-              <Chip
-                key={component.id}
-                label={component.name}
-                selected={componentId === component.id}
-                onPress={() => setComponentId(componentId === component.id ? undefined : component.id)}
-              />
-            ))}
-          </Row>
-          <Tertiary>Linking it pulls that item's age, model, and service history into the analysis.</Tertiary>
-        </Card>
+        <Enter index={4}>
+          <Card>
+            <Label>Which equipment? (optional)</Label>
+            <Row wrap gap={spacing.sm}>
+              {record.components.map((component) => (
+                <Chip
+                  key={component.id}
+                  label={component.name}
+                  selected={componentId === component.id}
+                  onPress={() => setComponentId(componentId === component.id ? undefined : component.id)}
+                />
+              ))}
+            </Row>
+            <Tertiary>
+              Linking it pulls that item's age, model, and service history into the analysis.
+            </Tertiary>
+          </Card>
+        </Enter>
       ) : null}
 
-      <Card>
-        <SectionTitle title={`Photos (${images.length}/6)`} />
-        {images.length > 0 ? (
-          <Row wrap gap={spacing.sm}>
-            {images.map((image) => (
-              <View key={image.uri}>
-                <Image
-                  source={{ uri: image.uri }}
-                  style={{ width: 88, height: 88, borderRadius: radius.md, backgroundColor: theme.surfaceSunken }}
-                  contentFit="cover"
-                />
-                <Pressable
-                  onPress={() => setImages((prev) => prev.filter((i) => i.uri !== image.uri))}
-                  accessibilityLabel="Remove photo"
-                  style={{ position: 'absolute', top: -6, right: -6, backgroundColor: theme.surface, borderRadius: radius.pill }}
-                >
-                  <Ionicons name="close-circle" size={22} color={theme.red} />
-                </Pressable>
-              </View>
-            ))}
-          </Row>
-        ) : (
-          <Small>Photos help a lot, but a description alone still works.</Small>
-        )}
-        <Row gap={spacing.sm} wrap>
-          <Button
-            label="Take a photo"
-            icon="camera-outline"
-            onPress={async () => {
-              const photo = await capturePhoto('the problem');
-              if (photo) setImages((prev) => [...prev, photo].slice(0, 6));
-            }}
-          />
-          <Button
-            label="From library"
-            icon="images-outline"
-            variant="secondary"
-            onPress={async () => {
-              const photos = await pickPhotos('the problem', 4);
-              if (photos.length > 0) setImages((prev) => [...prev, ...photos].slice(0, 6));
-            }}
-          />
-        </Row>
-      </Card>
-
-      {error ? <Notice tone="urgent" icon="alert-circle-outline">{error}</Notice> : null}
+      {error ? (
+        <Card tone={theme.redSoft}>
+          <Small style={{ color: theme.red }}>{error}</Small>
+          <Button label="Try again" size="sm" onPress={() => void submit()} />
+        </Card>
+      ) : null}
 
       {busy ? (
         <Loading label="Checking this against your home's record…" />
@@ -283,33 +374,21 @@ export default function ProblemScanner() {
         <Button
           label="Analyse"
           icon="sparkles-outline"
-          onPress={() => void submit()}
-          disabled={description.trim().length < 8 || !isGatewayConfigured()}
+          size="lg"
           full
+          onPress={() => void submit()}
+          disabled={
+            description.trim().length < 8 ||
+            !isGatewayConfigured() ||
+            (images.length > 0 && !canSubmit(images))
+          }
         />
       )}
 
-      {!isGatewayConfigured() ? (
-        <Notice icon="cloud-offline-outline">
-          Triage needs an AI gateway, which is not configured on this build. If something looks
-          dangerous — gas, smoke, water you cannot stop, exposed wiring — do not wait for an app.
-          Make the area safe and call the appropriate emergency number or utility.
-        </Notice>
-      ) : null}
-
-      <Card tone={theme.redSoft}>
-        <Row gap={spacing.sm} align="flex-start">
-          <Ionicons name="warning" size={18} color={theme.red} style={{ marginTop: 1 }} />
-          <View style={{ flex: 1, gap: spacing.xs }}>
-            <BodyStrong style={{ color: theme.red }}>Do not use this for an emergency</BodyStrong>
-            <Body style={{ color: theme.red }}>
-              If you smell gas, see smoke or fire, have water you cannot shut off, see arcing or
-              exposed wiring, or a carbon monoxide alarm is sounding — leave, then call emergency
-              services or your utility. Do not wait for an analysis.
-            </Body>
-          </View>
-        </Row>
-      </Card>
+      <Tertiary>
+        This is triage, not a diagnosis. It helps you decide how worried to be and what to do in the
+        next hour — it can't see inside walls or measure anything.
+      </Tertiary>
     </Screen>
   );
 }

@@ -11,6 +11,8 @@ import {
 import * as Haptics from 'expo-haptics';
 import { motion } from './theme';
 
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
+
 /**
  * Motion primitives.
  *
@@ -105,8 +107,18 @@ export function Touchable({
     return <View style={style}>{children}</View>;
   }
 
+  /*
+   * The style goes on the Pressable itself, not on an inner view.
+   *
+   * Wrapping the styled view inside an unstyled Pressable puts a content-sized
+   * element between the caller's layout style and its parent, so anything
+   * percentage-width or flex-based — a two-across tile grid, a row of stat tiles —
+   * resolves against the wrapper instead of the real container and collapses into
+   * a single shrinking column. Animating the Pressable directly keeps the element
+   * count at one and the layout exactly where the caller put it.
+   */
   return (
-    <Pressable
+    <AnimatedPressable
       accessibilityRole={accessibilityRole}
       accessibilityLabel={accessibilityLabel}
       onPressIn={() => {
@@ -121,9 +133,10 @@ export function Touchable({
       }}
       onPressOut={() => to(1, 220)}
       onPress={onPress}
+      style={[style, { transform: [{ scale }] }]}
     >
-      <Animated.View style={[{ transform: [{ scale }] }, style]}>{children}</Animated.View>
-    </Pressable>
+      {children}
+    </AnimatedPressable>
   );
 }
 
