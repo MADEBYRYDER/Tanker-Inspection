@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Tank car inspection">
+  <rect width="512" height="512" rx="96" fill="#0f1115"/>
+  <!-- tank barrel -->
+  <rect x="76" y="186" width="360" height="140" rx="70" fill="#1d222b" stroke="#f2a33c" stroke-width="16"/>
+  <!-- manway -->
+  <rect x="228" y="150" width="56" height="42" rx="8" fill="#f2a33c"/>
+  <!-- underframe -->
+  <rect x="104" y="336" width="304" height="18" rx="9" fill="#2a313d"/>
+  <!-- wheels -->
+  <circle cx="168" cy="392" r="34" fill="#1d222b" stroke="#98a2b3" stroke-width="14"/>
+  <circle cx="344" cy="392" r="34" fill="#1d222b" stroke="#98a2b3" stroke-width="14"/>
+  <!-- inspection check -->
+  <path d="M196 262l40 42 86-96" fill="none" stroke="#3fb27f" stroke-width="26" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

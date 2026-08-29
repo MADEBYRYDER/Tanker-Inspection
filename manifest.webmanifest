@@ -1,0 +1,14 @@
+{
+  "name": "Tank Car Inspection",
+  "short_name": "Inspection",
+  "description": "Step-by-step guided tank car and tanker inspection with photo documentation and printable reports.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0f1115",
+  "theme_color": "#0f1115",
+  "icons": [
+    { "src": "assets/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}
