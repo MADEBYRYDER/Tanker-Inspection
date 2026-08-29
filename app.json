@@ -1,0 +1,62 @@
+{
+  "expo": {
+    "name": "Homestead",
+    "slug": "homestead",
+    "scheme": "homestead",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0F1B18"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.homestead.app",
+      "infoPlist": {
+        "NSCameraUsageDescription": "Homestead uses the camera to scan equipment nameplates, document conditions, and capture invoices for your home record.",
+        "NSPhotoLibraryUsageDescription": "Homestead uses your photo library to attach existing photos and documents to your home record."
+      }
+    },
+    "android": {
+      "package": "com.homestead.app",
+      "adaptiveIcon": {
+        "backgroundColor": "#0F1B18",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false,
+      "permissions": ["android.permission.CAMERA"]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png",
+      "bundler": "metro",
+      "output": "single"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Homestead uses the camera to scan equipment nameplates and capture invoices."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Homestead uses your photo library to attach photos and documents to your home record."
+        }
+      ]
+    ],
+    "extra": {
+      "aiGatewayUrl": ""
+    },
+    "experiments": {
+      "typedRoutes": false
+    }
+  }
+}
