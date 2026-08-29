@@ -153,7 +153,7 @@ export default function Profile() {
         <Card padding={spacing.lg}>
           <ListRow
             icon={gateway?.ok ? 'cloud-done-outline' : 'cloud-offline-outline'}
-            iconColor={gateway?.ok ? theme.sage : theme.textSecondary}
+            iconStatus={gateway?.ok ? 'good' : 'neutral'}
             title="AI features"
             subtitle={
               gateway === undefined

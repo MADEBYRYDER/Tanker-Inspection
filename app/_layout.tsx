@@ -32,7 +32,16 @@ export default function RootLayout() {
         <Stack.Screen name="document/index" options={{ title: 'Add Receipt' }} />
         <Stack.Screen name="service/[id]" options={{ title: 'Service' }} />
 
-        <Stack.Screen name="health" options={{ title: 'Home Health' }} />
+        <Stack.Screen
+          name="health"
+          options={{
+            // The hero runs under the header, so the back control floats on it in
+            // white. A light header bar above a dark panel is a hard seam.
+            title: '',
+            headerTransparent: true,
+            headerTintColor: '#FFFFFF',
+          }}
+        />
         <Stack.Screen name="costs" options={{ title: 'Costs' }} />
         <Stack.Screen name="record/index" options={{ title: 'Home Record' }} />
         <Stack.Screen name="assistant" options={{ title: 'Ask Your Home' }} />

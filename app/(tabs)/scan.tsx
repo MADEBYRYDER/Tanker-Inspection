@@ -63,7 +63,7 @@ export default function ScanHub() {
         icon="alert-circle-outline"
         title="Something's Wrong"
         subtitle="Show us a problem and get it triaged."
-        accent={theme.amber}
+        status="attention"
         onPress={() => router.push('/problem')}
       />
       <BigOption
@@ -76,7 +76,7 @@ export default function ScanHub() {
         icon="home-outline"
         title="Scan My Home"
         subtitle="Guided walkthrough — build the whole record room by room."
-        accent={theme.sage}
+        status="good"
         onPress={() => router.push('/scan/guided')}
       />
 

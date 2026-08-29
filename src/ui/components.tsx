@@ -1,8 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import type { ReactNode } from 'react';
 import {
   ActivityIndicator,
-  Pressable,
+  Animated,
   ScrollView,
   StyleSheet,
   Text,
@@ -13,11 +14,15 @@ import {
   type ViewStyle,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import Svg, { Circle } from 'react-native-svg';
+import Svg, { Circle, Defs, LinearGradient as SvgGradient, Stop } from 'react-native-svg';
+import { Enter, Touchable, useCountUp, useReveal } from './motion';
 import {
   elevation,
+  heroGradient,
   radius,
+  ringGradient,
   spacing,
+  tabular,
   toneFor,
   type,
   useTheme,
@@ -27,6 +32,8 @@ import {
 
 type IconName = keyof typeof Ionicons.glyphMap;
 
+const AnimatedCircle = Animated.createAnimatedComponent(Circle);
+
 /* ------------------------------- Layout -------------------------------- */
 
 export function Screen({
@@ -34,22 +41,25 @@ export function Screen({
   scroll = true,
   padded = true,
   edges = ['top'],
-  gap = spacing.lg,
+  gap = spacing.xl,
+  bleedTop = false,
 }: {
   children: ReactNode;
   scroll?: boolean;
   padded?: boolean;
   edges?: ('top' | 'bottom' | 'left' | 'right')[];
   gap?: number;
+  /** Let a hero header run to the very top of the screen. */
+  bleedTop?: boolean;
 }) {
   const theme = useTheme();
   const inner = (
     <View
       style={{
         paddingHorizontal: padded ? spacing.lg : 0,
-        paddingTop: padded ? spacing.lg : 0,
+        paddingTop: bleedTop ? 0 : padded ? spacing.lg : 0,
         // Clears the tab bar and its elevated centre button.
-        paddingBottom: spacing.xxxl * 2.5,
+        paddingBottom: spacing.xxxl * 2.6,
         gap,
       }}
     >
@@ -57,9 +67,13 @@ export function Screen({
     </View>
   );
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: theme.bg }} edges={edges}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: theme.bg }} edges={bleedTop ? [] : edges}>
       {scroll ? (
-        <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+        <ScrollView
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+          contentInsetAdjustmentBehavior="never"
+        >
           {inner}
         </ScrollView>
       ) : (
@@ -76,36 +90,37 @@ export function Card({
   padding = spacing.xl,
   tone,
   raised = 1,
+  bordered = true,
 }: {
   children: ReactNode;
   style?: StyleProp<ViewStyle>;
   onPress?: () => void;
   padding?: number;
   tone?: string;
-  raised?: 1 | 2;
+  raised?: 0 | 1 | 2 | 3;
+  bordered?: boolean;
 }) {
   const theme = useTheme();
-  const body = (pressed: boolean) => (
-    <View
+  return (
+    <Touchable
+      onPress={onPress}
       style={[
         {
           backgroundColor: tone ?? theme.surface,
           borderRadius: radius.lg,
-          borderWidth: StyleSheet.hairlineWidth,
-          borderColor: theme.border,
+          borderWidth: bordered ? StyleSheet.hairlineWidth : 0,
+          borderColor: theme.hairline,
           padding,
           gap: spacing.md,
-          transform: [{ scale: pressed ? 0.995 : 1 }],
+          overflow: 'hidden',
         },
         elevation(theme, raised),
         style,
       ]}
     >
       {children}
-    </View>
+    </Touchable>
   );
-  if (!onPress) return body(false);
-  return <Pressable onPress={onPress}>{({ pressed }) => body(pressed)}</Pressable>;
 }
 
 export function Row({
@@ -144,9 +159,11 @@ export function Row({
 export function Divider({ inset = 0 }: { inset?: number }) {
   const theme = useTheme();
   return (
-    <View style={{ height: StyleSheet.hairlineWidth, backgroundColor: theme.border, marginLeft: inset }} />
+    <View style={{ height: StyleSheet.hairlineWidth, backgroundColor: theme.hairline, marginLeft: inset }} />
   );
 }
+
+export { Enter, Touchable };
 
 /* -------------------------------- Text --------------------------------- */
 
@@ -163,6 +180,7 @@ function makeText(base: TextStyle, colorKey: keyof Theme = 'text') {
   };
 }
 
+export const Mega = makeText(type.mega);
 export const Hero = makeText(type.hero);
 export const Display = makeText(type.display);
 export const Title = makeText(type.title);
@@ -173,7 +191,6 @@ export const BodyStrong = makeText(type.bodyStrong);
 export const Small = makeText(type.small, 'textSecondary');
 export const Tertiary = makeText(type.small, 'textTertiary');
 
-/** All-caps section marker. Used sparingly — mostly above lists on dense screens. */
 export function Label({ children, color }: { children: ReactNode; color?: string }) {
   const theme = useTheme();
   return (
@@ -194,12 +211,15 @@ export function SectionTitle({
 }) {
   const theme = useTheme();
   return (
-    <Row justify="space-between" style={{ marginTop: spacing.sm, marginBottom: -spacing.xs }}>
+    <Row justify="space-between" style={{ marginBottom: -spacing.xs }}>
       <Heading>{title}</Heading>
       {action ? (
-        <Pressable onPress={onAction} hitSlop={8}>
-          <Text style={[type.smallStrong, { color: theme.blue }]}>{action}</Text>
-        </Pressable>
+        <Touchable onPress={onAction} haptic="none" scaleTo={0.94}>
+          <Row gap={2}>
+            <Text style={[type.smallStrong, { color: theme.blue }]}>{action}</Text>
+            <Ionicons name="chevron-forward" size={13} color={theme.blue} />
+          </Row>
+        </Touchable>
       ) : null}
     </Row>
   );
@@ -207,8 +227,7 @@ export function SectionTitle({
 
 /* ------------------------------- Status -------------------------------- */
 
-/** A solid status dot. Always paired with a text label — colour is never the only signal. */
-export function Dot({ status, size = 10 }: { status: StatusKey; size?: number }) {
+export function Dot({ status, size = 9 }: { status: StatusKey; size?: number }) {
   const theme = useTheme();
   return (
     <View
@@ -226,10 +245,12 @@ export function StatusPill({
   status,
   label,
   icon,
+  solid = false,
 }: {
   status: StatusKey;
   label: string;
   icon?: IconName;
+  solid?: boolean;
 }) {
   const theme = useTheme();
   const tone = toneFor(theme, status, label);
@@ -238,57 +259,76 @@ export function StatusPill({
       style={{
         flexDirection: 'row',
         alignItems: 'center',
-        gap: spacing.xs,
-        backgroundColor: tone.bg,
+        gap: 6,
+        backgroundColor: solid ? tone.fg : tone.bg,
         borderRadius: radius.pill,
         paddingHorizontal: spacing.md,
-        paddingVertical: 5,
+        paddingVertical: 6,
         alignSelf: 'flex-start',
       }}
     >
-      {icon ? <Ionicons name={icon} size={12} color={tone.fg} /> : <Dot status={status} size={7} />}
-      <Text style={[type.smallStrong, { color: tone.fg, fontSize: 12.5 }]}>{label}</Text>
+      {icon ? (
+        <Ionicons name={icon} size={12} color={solid ? theme.surface : tone.fg} />
+      ) : (
+        <View
+          style={{
+            width: 6,
+            height: 6,
+            borderRadius: 3,
+            backgroundColor: solid ? theme.surface : tone.fg,
+          }}
+        />
+      )}
+      <Text
+        style={{
+          fontSize: 12.5,
+          fontWeight: '600',
+          letterSpacing: -0.1,
+          color: solid ? theme.surface : tone.fg,
+        }}
+      >
+        {label}
+      </Text>
     </View>
   );
 }
 
-/**
- * A small caption chip with explicit colours.
- *
- * `StatusPill` is the one to reach for when something has a status. This is for the
- * cases that are labels rather than states — "launch partner", "3 docs" — where the
- * status vocabulary would be misleading.
- */
-export function Badge({ label, fg, bg }: { label: string; fg: string; bg: string }) {
-  return (
-    <View style={{ backgroundColor: bg, borderRadius: radius.sm, paddingHorizontal: spacing.sm, paddingVertical: 3 }}>
-      <Text style={[type.label, { color: fg, fontSize: 11 }]}>{label}</Text>
-    </View>
-  );
-}
-
-/** A bare progress bar with no label. `BarRow` is the labelled version. */
-export function Meter({ value, color, max = 100 }: { value: number; color: string; max?: number }) {
+/** An icon in a tinted, softly gradiented container. The app's signature detail. */
+export function IconTile({
+  icon,
+  status = 'neutral',
+  size = 44,
+}: {
+  icon: IconName;
+  status?: StatusKey;
+  size?: number;
+}) {
   const theme = useTheme();
-  const pct = Math.max(0, Math.min(1, value / max));
+  const tone = toneFor(theme, status);
   return (
     <View
-      accessibilityRole="progressbar"
-      accessibilityValue={{ min: 0, max, now: Math.round(value) }}
-      style={{ height: 7, borderRadius: radius.pill, backgroundColor: theme.surfaceSunken, overflow: 'hidden' }}
+      style={{
+        width: size,
+        height: size,
+        borderRadius: size * 0.32,
+        overflow: 'hidden',
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: tone.bg,
+      }}
     >
-      <View style={{ width: `${pct * 100}%`, height: '100%', backgroundColor: color, borderRadius: radius.pill }} />
+      <LinearGradient
+        colors={[tone.bg, theme.dark ? theme.surfaceSunken : '#FFFFFF']}
+        start={{ x: 0.1, y: 0 }}
+        end={{ x: 0.9, y: 1 }}
+        style={StyleSheet.absoluteFill}
+      />
+      <Ionicons name={icon} size={size * 0.45} color={tone.fg} />
     </View>
   );
 }
 
-/**
- * The documented-vs-estimated marker.
- *
- * Small and quiet, but present everywhere a derived number sits beside a read one.
- * It is the difference between a record people trust and one they learn to
- * second-guess, so it gets a component rather than being re-styled per screen.
- */
+/** The documented-vs-estimated marker. Quiet, but present wherever it matters. */
 export function ProvenanceTag({ provenance }: { provenance: string }) {
   const theme = useTheme();
   const documented = provenance === 'documented' || provenance === 'contractor';
@@ -296,6 +336,14 @@ export function ProvenanceTag({ provenance }: { provenance: string }) {
     <Text style={[type.small, { color: theme.textTertiary, fontSize: 12 }]}>
       {documented ? 'on record' : provenance === 'unknown' ? 'unknown' : 'estimated'}
     </Text>
+  );
+}
+
+export function Badge({ label, fg, bg }: { label: string; fg: string; bg: string }) {
+  return (
+    <View style={{ backgroundColor: bg, borderRadius: radius.sm, paddingHorizontal: spacing.sm, paddingVertical: 4 }}>
+      <Text style={[type.label, { color: fg, fontSize: 11 }]}>{label}</Text>
+    </View>
   );
 }
 
@@ -327,59 +375,58 @@ export function Button({
   const theme = useTheme();
   const palette = {
     primary: { bg: tone ?? theme.ink, fg: theme.onInk, border: 'transparent' },
-    secondary: { bg: theme.surface, fg: theme.text, border: theme.borderStrong },
+    secondary: { bg: theme.surface, fg: theme.text, border: theme.border },
     quiet: { bg: theme.surfaceSunken, fg: theme.text, border: 'transparent' },
     ghost: { bg: 'transparent', fg: tone ?? theme.blue, border: 'transparent' },
     danger: { bg: theme.redSoft, fg: theme.red, border: 'transparent' },
   }[variant];
 
   const metrics = {
-    sm: { py: 7, px: spacing.md, font: 13.5, icon: 14 },
-    md: { py: spacing.md, px: spacing.xl, font: 15, icon: 17 },
-    lg: { py: spacing.lg, px: spacing.xl, font: 16, icon: 19 },
+    sm: { py: 9, px: spacing.lg, font: 13.5, icon: 15 },
+    md: { py: 14, px: spacing.xl, font: 15, icon: 17 },
+    lg: { py: 17, px: spacing.xl, font: 16.5, icon: 19 },
   }[size];
 
   const inactive = disabled || loading;
 
   return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityState={{ disabled: Boolean(inactive) }}
+    <Touchable
       onPress={inactive ? undefined : onPress}
-      style={({ pressed }) => ({
-        backgroundColor: palette.bg,
-        borderColor: palette.border,
-        borderWidth: variant === 'secondary' ? StyleSheet.hairlineWidth : 0,
-        borderRadius: radius.pill,
-        paddingVertical: metrics.py,
-        paddingHorizontal: metrics.px,
-        opacity: inactive ? 0.4 : pressed ? 0.75 : 1,
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: spacing.sm,
-        alignSelf: full ? 'stretch' : 'flex-start',
-        flex: full ? 1 : undefined,
-      })}
+      scaleTo={0.965}
+      haptic={variant === 'primary' ? 'medium' : 'light'}
+      style={[
+        {
+          backgroundColor: palette.bg,
+          borderColor: palette.border,
+          borderWidth: variant === 'secondary' ? StyleSheet.hairlineWidth : 0,
+          borderRadius: radius.pill,
+          paddingVertical: metrics.py,
+          paddingHorizontal: metrics.px,
+          opacity: inactive ? 0.38 : 1,
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: spacing.sm,
+          alignSelf: full ? 'stretch' : 'flex-start',
+          flex: full ? 1 : undefined,
+        },
+        variant === 'primary' && !inactive ? elevation(theme, 1) : null,
+      ]}
     >
       {loading ? (
         <ActivityIndicator size="small" color={palette.fg} />
       ) : icon ? (
         <Ionicons name={icon} size={metrics.icon} color={palette.fg} />
       ) : null}
-      <Text style={{ color: palette.fg, fontSize: metrics.font, fontWeight: '600' }}>{label}</Text>
+      <Text style={{ color: palette.fg, fontSize: metrics.font, fontWeight: '600', letterSpacing: -0.2 }}>
+        {label}
+      </Text>
       {iconRight ? <Ionicons name={iconRight} size={metrics.icon} color={palette.fg} /> : null}
-    </Pressable>
+    </Touchable>
   );
 }
 
-/**
- * The DIY / Hire pair.
- *
- * Part of the product's identity rather than a styling choice: every task the app
- * raises should immediately offer both ways out of it, so the answer to "what do I
- * do about this" is never just "worry".
- */
+/** The DIY / Hire pair — every task offers both ways out of it. */
 export function DiyHire({
   onDiy,
   onHire,
@@ -422,7 +469,7 @@ export function Field({
 }) {
   const theme = useTheme();
   return (
-    <View style={{ gap: 6 }}>
+    <View style={{ gap: 7 }}>
       <Text style={[type.smallStrong, { color: theme.textSecondary }]}>{label}</Text>
       <TextInput
         value={value}
@@ -435,11 +482,13 @@ export function Field({
         style={{
           backgroundColor: theme.surfaceSunken,
           borderRadius: radius.md,
+          borderWidth: StyleSheet.hairlineWidth,
+          borderColor: theme.hairline,
           paddingHorizontal: spacing.lg,
-          paddingVertical: spacing.md,
+          paddingVertical: 14,
           color: theme.text,
           fontSize: 16,
-          minHeight: multiline ? 104 : undefined,
+          minHeight: multiline ? 110 : undefined,
           textAlignVertical: multiline ? 'top' : 'center',
         }}
       />
@@ -461,103 +510,136 @@ export function Chip({
 }) {
   const theme = useTheme();
   return (
-    <Pressable
-      onPress={onPress}
-      accessibilityRole={onPress ? 'button' : undefined}
-      accessibilityState={{ selected: Boolean(selected) }}
-      style={({ pressed }) => ({
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 6,
-        paddingVertical: 9,
-        paddingHorizontal: spacing.lg,
-        borderRadius: radius.pill,
-        backgroundColor: selected ? theme.ink : theme.surface,
-        borderWidth: StyleSheet.hairlineWidth,
-        borderColor: selected ? theme.ink : theme.borderStrong,
-        opacity: pressed ? 0.7 : 1,
-      })}
-    >
-      {icon ? (
-        <Ionicons name={icon} size={14} color={selected ? theme.onInk : theme.textSecondary} />
-      ) : null}
-      <Text
+    <Touchable onPress={onPress} scaleTo={0.94} accessibilityLabel={label}>
+      <View
         style={{
-          fontSize: 13.5,
-          fontWeight: selected ? '600' : '500',
-          color: selected ? theme.onInk : theme.textSecondary,
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: 6,
+          paddingVertical: 10,
+          paddingHorizontal: spacing.lg,
+          borderRadius: radius.pill,
+          backgroundColor: selected ? theme.ink : theme.surface,
+          borderWidth: StyleSheet.hairlineWidth,
+          borderColor: selected ? theme.ink : theme.border,
         }}
       >
-        {label}
-      </Text>
-    </Pressable>
+        {icon ? (
+          <Ionicons name={icon} size={14} color={selected ? theme.onInk : theme.textSecondary} />
+        ) : null}
+        <Text
+          style={{
+            fontSize: 13.5,
+            fontWeight: '600',
+            letterSpacing: -0.1,
+            color: selected ? theme.onInk : theme.textSecondary,
+          }}
+        >
+          {label}
+        </Text>
+      </View>
+    </Touchable>
   );
 }
 
 /* ------------------------------ Data views ------------------------------ */
 
 /**
- * The circular home health score.
+ * The health score ring.
  *
- * One number, one word. The arc is deliberately unlabelled — no ticks, no scale, no
- * decimals — because the underlying estimate does not support that kind of
- * precision and dressing it up as instrumentation would be a lie about how much
- * the app knows.
+ * A gradient stroke that sweeps and fills on mount, with the number counting up
+ * behind it. One number, one word, no ticks and no decimals — the arc gives the
+ * figure weight without implying an instrument-grade measurement the underlying
+ * lifespan tables cannot support.
  */
 export function ScoreRing({
   score,
   size = 148,
   label,
-  color,
-  caption,
+  status,
+  onDark = false,
 }: {
   score: number;
   size?: number;
   label: string;
-  color: string;
-  caption?: string;
+  status: StatusKey;
+  onDark?: boolean;
 }) {
   const theme = useTheme();
-  const stroke = size >= 120 ? 11 : 8;
+  const [from, to] = ringGradient(theme, status);
+  const tone = toneFor(theme, status);
+  const stroke = size >= 130 ? 12 : size >= 100 ? 9 : 7;
   const r = (size - stroke) / 2;
   const circumference = 2 * Math.PI * r;
-  const pct = Math.max(0, Math.min(100, score)) / 100;
+  const target = Math.max(0, Math.min(100, score)) / 100;
+
+  const progress = useReveal();
+  const counted = useCountUp(score);
+
+  const numberColor = onDark ? '#FFFFFF' : theme.text;
+  const labelColor = onDark ? (theme.dark ? tone.fg : '#FFFFFF') : tone.fg;
+  const trackColor = onDark ? 'rgba(255,255,255,0.14)' : theme.surfaceSunken;
 
   return (
-    <View style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }}>
+    <View
+      style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }}
+      accessibilityRole="progressbar"
+      accessibilityValue={{ min: 0, max: 100, now: Math.round(score) }}
+      accessibilityLabel={`Home health ${Math.round(score)} out of 100, ${label}`}
+    >
       <Svg width={size} height={size} style={{ position: 'absolute' }}>
-        <Circle cx={size / 2} cy={size / 2} r={r} stroke={theme.surfaceSunken} strokeWidth={stroke} fill="none" />
-        <Circle
+        <Defs>
+          <SvgGradient id={`ring-${status}-${size}`} x1="0" y1="0" x2="1" y2="1">
+            <Stop offset="0" stopColor={from} />
+            <Stop offset="1" stopColor={to} />
+          </SvgGradient>
+        </Defs>
+        <Circle cx={size / 2} cy={size / 2} r={r} stroke={trackColor} strokeWidth={stroke} fill="none" />
+        <AnimatedCircle
           cx={size / 2}
           cy={size / 2}
           r={r}
-          stroke={color}
+          stroke={`url(#ring-${status}-${size})`}
           strokeWidth={stroke}
           fill="none"
           strokeLinecap="round"
-          strokeDasharray={`${circumference * pct} ${circumference}`}
+          strokeDasharray={circumference}
+          strokeDashoffset={progress.interpolate({
+            inputRange: [0, 1],
+            outputRange: [circumference, circumference * (1 - target)],
+          })}
           transform={`rotate(-90 ${size / 2} ${size / 2})`}
         />
       </Svg>
       <Text
+        style={[
+          {
+            fontSize: size >= 130 ? 46 : size >= 100 ? 34 : 24,
+            fontWeight: '700',
+            letterSpacing: size >= 130 ? -2 : -1.2,
+            color: numberColor,
+          },
+          tabular,
+        ]}
+      >
+        {Math.round(counted)}
+      </Text>
+      <Text
         style={{
-          fontSize: size >= 120 ? 40 : 26,
-          fontWeight: '600',
-          letterSpacing: -1.2,
-          color: theme.text,
+          fontSize: size >= 130 ? 13.5 : 11.5,
+          fontWeight: '700',
+          letterSpacing: 0.3,
+          color: labelColor,
+          marginTop: 1,
         }}
       >
-        {Math.round(score)}
+        {label.toUpperCase()}
       </Text>
-      <Text style={{ fontSize: size >= 120 ? 14 : 12, fontWeight: '600', color, marginTop: 2 }}>
-        {label}
-      </Text>
-      {caption ? <Tertiary style={{ marginTop: 2 }}>{caption}</Tertiary> : null}
     </View>
   );
 }
 
-/** A labelled horizontal bar. Used for per-system condition and spend breakdowns. */
+/** A labelled bar that fills on mount. Per-system condition, spend breakdowns. */
 export function BarRow({
   label,
   value,
@@ -565,6 +647,7 @@ export function BarRow({
   color,
   trailing,
   onPress,
+  index = 0,
 }: {
   label: string;
   value: number;
@@ -572,44 +655,149 @@ export function BarRow({
   color: string;
   trailing?: string;
   onPress?: () => void;
+  index?: number;
 }) {
   const theme = useTheme();
+  const progress = useReveal(600, Math.min(index, 8) * 45);
   const pct = Math.max(0, Math.min(1, value / max));
-  const content = (
-    <View style={{ gap: 6 }}>
-      <Row justify="space-between">
-        <BodyStrong>{label}</BodyStrong>
-        <Row gap={spacing.sm}>
-          {trailing ? <Small>{trailing}</Small> : null}
-          {onPress ? <Ionicons name="chevron-forward" size={15} color={theme.textTertiary} /> : null}
-        </Row>
-      </Row>
-      <View
-        style={{
-          height: 7,
-          borderRadius: radius.pill,
-          backgroundColor: theme.surfaceSunken,
-          overflow: 'hidden',
-        }}
-      >
-        <View style={{ width: `${pct * 100}%`, height: '100%', backgroundColor: color, borderRadius: radius.pill }} />
-      </View>
-    </View>
-  );
-  if (!onPress) return content;
+
   return (
-    <Pressable onPress={onPress} style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}>
-      {content}
-    </Pressable>
+    <Touchable onPress={onPress} scaleTo={0.99} haptic="light">
+      <View style={{ gap: 8 }}>
+        <Row justify="space-between" gap={spacing.md}>
+          <BodyStrong numberOfLines={1} style={{ flex: 1 }}>
+            {label}
+          </BodyStrong>
+          <Row gap={6}>
+            {trailing ? <Small>{trailing}</Small> : null}
+            {onPress ? <Ionicons name="chevron-forward" size={14} color={theme.textTertiary} /> : null}
+          </Row>
+        </Row>
+        <View
+          style={{
+            height: 8,
+            borderRadius: radius.pill,
+            backgroundColor: theme.surfaceSunken,
+            overflow: 'hidden',
+          }}
+        >
+          <Animated.View
+            style={{
+              width: progress.interpolate({
+                inputRange: [0, 1],
+                outputRange: ['0%', `${pct * 100}%`],
+              }),
+              height: '100%',
+              backgroundColor: color,
+              borderRadius: radius.pill,
+            }}
+          />
+        </View>
+      </View>
+    </Touchable>
   );
 }
 
-/** A single figure with a caption. Three across reads as a summary strip. */
+export function Meter({ value, color, max = 100 }: { value: number; color: string; max?: number }) {
+  const theme = useTheme();
+  const progress = useReveal(600);
+  const pct = Math.max(0, Math.min(1, value / max));
+  return (
+    <View style={{ height: 8, borderRadius: radius.pill, backgroundColor: theme.surfaceSunken, overflow: 'hidden' }}>
+      <Animated.View
+        style={{
+          width: progress.interpolate({ inputRange: [0, 1], outputRange: ['0%', `${pct * 100}%`] }),
+          height: '100%',
+          backgroundColor: color,
+          borderRadius: radius.pill,
+        }}
+      />
+    </View>
+  );
+}
+
+export function Progress({ value, max = 100 }: { value: number; max?: number }) {
+  const theme = useTheme();
+  return <Meter value={value} max={max} color={theme.sage} />;
+}
+
+/**
+ * A bento tile — one big figure, one caption, optional icon and trend.
+ *
+ * Sized to sit two or three across. A grid of these reads as a dashboard; the same
+ * numbers in a list read as a settings screen.
+ */
+export function Tile({
+  value,
+  label,
+  icon,
+  status = 'neutral',
+  onPress,
+  footnote,
+  wide = false,
+}: {
+  value: string;
+  label: string;
+  icon?: IconName;
+  status?: StatusKey;
+  onPress?: () => void;
+  footnote?: string;
+  wide?: boolean;
+}) {
+  const theme = useTheme();
+  const tone = toneFor(theme, status);
+  return (
+    <Touchable
+      onPress={onPress}
+      style={[
+        {
+          flex: wide ? undefined : 1,
+          minWidth: wide ? '100%' : undefined,
+          backgroundColor: theme.surface,
+          borderRadius: radius.lg,
+          borderWidth: StyleSheet.hairlineWidth,
+          borderColor: theme.hairline,
+          padding: spacing.lg,
+          gap: spacing.sm,
+        },
+        elevation(theme, 1),
+      ]}
+    >
+      {icon ? (
+        <Row justify="space-between">
+          <IconTile icon={icon} status={status} size={32} />
+          {onPress ? <Ionicons name="chevron-forward" size={14} color={theme.textTertiary} /> : null}
+        </Row>
+      ) : null}
+      <View style={{ gap: 1 }}>
+        <Text
+          style={[
+            { fontSize: 24, fontWeight: '700', letterSpacing: -0.9, color: status === 'neutral' ? theme.text : tone.fg },
+            tabular,
+          ]}
+          numberOfLines={1}
+        >
+          {value}
+        </Text>
+        <Tertiary numberOfLines={2}>{label}</Tertiary>
+      </View>
+      {footnote ? <Tertiary numberOfLines={1}>{footnote}</Tertiary> : null}
+    </Touchable>
+  );
+}
+
+/** Three small figures in a row, inside a card. */
 export function Stat({ value, label, color }: { value: string; label: string; color?: string }) {
   const theme = useTheme();
   return (
     <View style={{ flex: 1, gap: 2 }}>
-      <Text style={{ fontSize: 21, fontWeight: '600', letterSpacing: -0.5, color: color ?? theme.text }}>
+      <Text
+        style={[
+          { fontSize: 21, fontWeight: '700', letterSpacing: -0.6, color: color ?? theme.text },
+          tabular,
+        ]}
+        numberOfLines={1}
+      >
         {value}
       </Text>
       <Tertiary numberOfLines={2}>{label}</Tertiary>
@@ -617,11 +805,9 @@ export function Stat({ value, label, color }: { value: string; label: string; co
   );
 }
 
-/** A left-icon / title-subtitle / chevron row. The workhorse list item. */
 export function ListRow({
   icon,
-  iconColor,
-  iconBg,
+  iconStatus,
   title,
   subtitle,
   trailing,
@@ -630,8 +816,7 @@ export function ListRow({
   chevron = true,
 }: {
   icon?: IconName;
-  iconColor?: string;
-  iconBg?: string;
+  iconStatus?: StatusKey;
   title: string;
   subtitle?: string;
   trailing?: ReactNode;
@@ -640,43 +825,28 @@ export function ListRow({
   chevron?: boolean;
 }) {
   const theme = useTheme();
-  const content = (
-    <Row gap={spacing.md} justify="space-between">
-      <Row gap={spacing.md} style={{ flex: 1 }}>
-        {icon ? (
-          <View
-            style={{
-              width: 36,
-              height: 36,
-              borderRadius: radius.md,
-              backgroundColor: iconBg ?? theme.surfaceSunken,
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            <Ionicons name={icon} size={18} color={iconColor ?? theme.textSecondary} />
-          </View>
-        ) : status ? (
-          <Dot status={status} />
-        ) : null}
-        <View style={{ flex: 1, gap: 1 }}>
-          <BodyStrong numberOfLines={1}>{title}</BodyStrong>
-          {subtitle ? <Small numberOfLines={2}>{subtitle}</Small> : null}
-        </View>
-      </Row>
-      <Row gap={spacing.sm}>
-        {trailing}
-        {chevron && onPress ? (
-          <Ionicons name="chevron-forward" size={16} color={theme.textTertiary} />
-        ) : null}
-      </Row>
-    </Row>
-  );
-  if (!onPress) return content;
   return (
-    <Pressable onPress={onPress} style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}>
-      {content}
-    </Pressable>
+    <Touchable onPress={onPress} scaleTo={0.99}>
+      <Row gap={spacing.md} justify="space-between">
+        <Row gap={spacing.md} style={{ flex: 1 }}>
+          {icon ? (
+            <IconTile icon={icon} status={iconStatus ?? 'neutral'} size={38} />
+          ) : status ? (
+            <Dot status={status} />
+          ) : null}
+          <View style={{ flex: 1, gap: 2 }}>
+            <BodyStrong numberOfLines={1}>{title}</BodyStrong>
+            {subtitle ? <Small numberOfLines={2}>{subtitle}</Small> : null}
+          </View>
+        </Row>
+        <Row gap={spacing.sm}>
+          {trailing}
+          {chevron && onPress ? (
+            <Ionicons name="chevron-forward" size={16} color={theme.textTertiary} />
+          ) : null}
+        </Row>
+      </Row>
+    </Touchable>
   );
 }
 
@@ -691,21 +861,9 @@ export function EmptyState({
   body: string;
   action?: ReactNode;
 }) {
-  const theme = useTheme();
   return (
-    <Card style={{ alignItems: 'center', paddingVertical: spacing.xxl, gap: spacing.md }}>
-      <View
-        style={{
-          width: 52,
-          height: 52,
-          borderRadius: radius.pill,
-          backgroundColor: theme.surfaceSunken,
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}
-      >
-        <Ionicons name={icon} size={24} color={theme.textSecondary} />
-      </View>
+    <Card style={{ alignItems: 'center', paddingVertical: spacing.xxl, gap: spacing.lg }} raised={1}>
+      <IconTile icon={icon} status="neutral" size={58} />
       <Heading style={{ textAlign: 'center' }}>{title}</Heading>
       <Small style={{ textAlign: 'center', maxWidth: 320 }}>{body}</Small>
       {action}
@@ -777,56 +935,79 @@ export function Loading({ label }: { label: string }) {
   );
 }
 
-/** Thin progress bar with a percentage caption. Used by the guided home scan. */
-export function Progress({ value, max = 100 }: { value: number; max?: number }) {
+/**
+ * The dashboard hero.
+ *
+ * A dark gradient panel running to the top edge, with the score sitting on it. One
+ * strong focal moment gives the screen a top; without it a dashboard is just a
+ * stack of equally-weighted cards, which is what makes utility apps feel flat.
+ */
+export function HeroPanel({
+  children,
+  style,
+  bleed = spacing.lg,
+}: {
+  children: ReactNode;
+  style?: StyleProp<ViewStyle>;
+  /** Negative inset that cancels the screen's horizontal padding. */
+  bleed?: number;
+}) {
   const theme = useTheme();
-  const pct = Math.max(0, Math.min(1, value / max));
   return (
     <View
-      style={{ height: 8, borderRadius: radius.pill, backgroundColor: theme.surfaceSunken, overflow: 'hidden' }}
+      style={[
+        {
+          overflow: 'hidden',
+          borderBottomLeftRadius: radius.xxl,
+          borderBottomRightRadius: radius.xxl,
+          // Runs edge to edge. A hero with a margin around it is just a dark card.
+          marginHorizontal: -bleed,
+        },
+        style,
+      ]}
     >
-      <View style={{ width: `${pct * 100}%`, height: '100%', backgroundColor: theme.sage }} />
+      <LinearGradient
+        colors={heroGradient(theme)}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={StyleSheet.absoluteFill}
+      />
+      {/* A soft highlight along the top edge, so the panel reads as a lit surface. */}
+      <LinearGradient
+        colors={['rgba(255,255,255,0.10)', 'rgba(255,255,255,0)']}
+        style={{ position: 'absolute', left: 0, right: 0, top: 0, height: 120 }}
+      />
+      <SafeAreaView edges={['top']}>
+        <View style={{ paddingHorizontal: spacing.lg, paddingTop: spacing.md, paddingBottom: spacing.xxl }}>
+          {children}
+        </View>
+      </SafeAreaView>
     </View>
   );
 }
 
-/**
- * A large tappable option. The scan hub is four of these rather than a menu —
- * "see something, scan it" only works if the entry points are impossible to miss.
- */
+/** A large tappable option. The scan hub is four of these rather than a menu. */
 export function BigOption({
   icon,
   title,
   subtitle,
   onPress,
-  accent,
+  status = 'neutral',
 }: {
   icon: IconName;
   title: string;
   subtitle: string;
   onPress: () => void;
-  accent?: string;
+  status?: StatusKey;
 }) {
   const theme = useTheme();
-  const color = accent ?? theme.text;
   return (
-    <Card onPress={onPress} padding={spacing.xl}>
+    <Card onPress={onPress} padding={spacing.lg} raised={1}>
       <Row gap={spacing.lg}>
-        <View
-          style={{
-            width: 48,
-            height: 48,
-            borderRadius: radius.md,
-            backgroundColor: theme.surfaceSunken,
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-        >
-          <Ionicons name={icon} size={23} color={color} />
-        </View>
+        <IconTile icon={icon} status={status} size={50} />
         <View style={{ flex: 1, gap: 3 }}>
           <Subheading>{title}</Subheading>
-          <Small>{subtitle}</Small>
+          <Small numberOfLines={2}>{subtitle}</Small>
         </View>
         <Ionicons name="chevron-forward" size={18} color={theme.textTertiary} />
       </Row>
@@ -837,10 +1018,9 @@ export function BigOption({
 /**
  * The contextual AI entry point.
  *
- * Deliberately a quiet single line rather than a chat surface. The assistant is
- * useful where a question naturally arises — on the equipment page, on the
- * dashboard — and a persistent chat panel would both crowd those screens and make
- * the product look like a chatbot with a home record bolted on.
+ * One quiet row, never a chat surface. The assistant is useful where a question
+ * naturally arises; a persistent panel would crowd every screen and make the
+ * product look like a chatbot with a home record bolted on.
  */
 export function AskRow({
   prompt,
@@ -853,7 +1033,7 @@ export function AskRow({
 }) {
   const theme = useTheme();
   return (
-    <Pressable onPress={onPress} style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}>
+    <Touchable onPress={onPress} scaleTo={0.985}>
       <View
         style={{
           flexDirection: 'row',
@@ -862,9 +1042,11 @@ export function AskRow({
           backgroundColor: theme.blueSoft,
           borderRadius: radius.lg,
           padding: spacing.lg,
+          borderWidth: StyleSheet.hairlineWidth,
+          borderColor: theme.hairline,
         }}
       >
-        <Ionicons name="sparkles-outline" size={18} color={theme.blue} />
+        <IconTile icon="sparkles-outline" status="info" size={38} />
         <View style={{ flex: 1, gap: 2 }}>
           <Text style={[type.smallStrong, { color: theme.blue }]}>{title}</Text>
           <Text style={[type.small, { color: theme.blue, opacity: 0.85 }]} numberOfLines={1}>
@@ -873,7 +1055,7 @@ export function AskRow({
         </View>
         <Ionicons name="chevron-forward" size={16} color={theme.blue} />
       </View>
-    </Pressable>
+    </Touchable>
   );
 }
 
@@ -889,9 +1071,10 @@ export function StickyBar({ children }: { children: ReactNode }) {
         bottom: 0,
         padding: spacing.lg,
         paddingBottom: spacing.xxl,
-        backgroundColor: theme.bg,
+        backgroundColor: theme.surface,
         borderTopWidth: StyleSheet.hairlineWidth,
-        borderTopColor: theme.border,
+        borderTopColor: theme.hairline,
+        ...elevation(theme, 3),
       }}
     >
       {children}

@@ -1,152 +1,247 @@
-import { useColorScheme } from 'react-native';
+import { Platform, useColorScheme } from 'react-native';
 import type { HealthStatus, TaskUrgency } from '../core/types';
 
 /**
  * The design system.
  *
- * The house is the hero, not the software. That rules out the visual language
- * software usually reaches for to signal intelligence — gradients, glows, saturated
- * accent colours, a chat bubble on every screen. A homeowner deciding whether to
- * trust a $9,000 replacement warning reads that styling as marketing, and marketing
- * is the opposite of what this product is selling.
+ * The house is the hero, not the software — which rules out the visual language
+ * apps normally use to signal intelligence: neon gradients, glowing accents, a chat
+ * bubble on every screen. Someone deciding whether to trust a $9,000 replacement
+ * warning reads that as marketing.
  *
- * So: warm off-white ground, near-black text, generous space, and colour used only
- * to carry status. Red is reserved for things that are genuinely urgent. If it
- * appears on a screen it should mean something, which means it has to be rare.
+ * But restraint is not the same as flatness. Premium comes from depth, hierarchy,
+ * and material: layered shadows rather than borders, tonal gradients rather than
+ * flat fills, one dramatic focal moment per screen rather than uniform cards, and
+ * numbers set large in tabular figures. Colour still carries status and nothing
+ * else, and red is rare enough that it means something when it appears.
  */
 
 export interface Theme {
   dark: boolean;
 
-  /** Page ground. Warm, not clinical white. */
+  /** Page ground. Warm, never clinical white. */
   bg: string;
-  /** Cards sit above the ground. */
+  /** A second ground tone for banded sections. */
+  bgAlt: string;
+  /** Cards. */
   surface: string;
-  /** Inset areas inside a card — inputs, wells, muted chips. */
+  /** Cards that sit on top of other cards. */
+  surfaceRaised: string;
+  /** Inset wells — inputs, muted chips, track backgrounds. */
   surfaceSunken: string;
-  /** Hairline borders. Barely there by design; elevation does the separating. */
+  /** Translucent fill for glass surfaces over content. */
+  glass: string;
+
+  /** Hairlines. Barely visible; elevation does the separating. */
+  hairline: string;
   border: string;
-  borderStrong: string;
 
   text: string;
   textSecondary: string;
   textTertiary: string;
 
-  /** Healthy. Muted sage — reassuring rather than congratulatory. */
+  /** Healthy. Muted sage — reassuring, never congratulatory. */
   sage: string;
   sageSoft: string;
-  /** Needs attention, not alarming. */
+  sageDeep: string;
+  /** Needs attention. */
   amber: string;
   amberSoft: string;
   /** Genuinely urgent only. */
   red: string;
   redSoft: string;
-  /** Informational and AI actions. Deliberately quiet. */
+  /** Informational and AI. Deliberately quiet. */
   blue: string;
   blueSoft: string;
 
-  /** Primary action fill. */
+  /** Primary action fill and the hero gradient base. */
   ink: string;
+  inkElevated: string;
   onInk: string;
 
-  shadow: string;
+  shadowAmbient: string;
+  shadowKey: string;
 }
 
 const light: Theme = {
   dark: false,
-  bg: '#FAF9F6',
+  bg: '#F7F6F2',
+  bgAlt: '#F1EFE9',
   surface: '#FFFFFF',
-  surfaceSunken: '#F4F2EE',
-  border: '#EBE8E2',
-  borderStrong: '#DDD9D1',
-  text: '#1B1B1D',
-  textSecondary: '#6B6B70',
-  textTertiary: '#9B9BA0',
-  sage: '#4F7D62',
-  sageSoft: '#EAF1EC',
-  amber: '#A87322',
-  amberSoft: '#FAF0DF',
-  red: '#B04338',
-  redSoft: '#FBECEA',
-  blue: '#3E6E93',
-  blueSoft: '#EBF2F7',
-  ink: '#1F2A24',
+  surfaceRaised: '#FFFFFF',
+  surfaceSunken: '#F2F0EB',
+  glass: 'rgba(255,255,255,0.72)',
+  hairline: 'rgba(28,28,30,0.06)',
+  border: 'rgba(28,28,30,0.10)',
+  text: '#15171A',
+  textSecondary: '#5F6570',
+  textTertiary: '#9AA0A8',
+  sage: '#3F7A5E',
+  sageSoft: '#E6F0E9',
+  sageDeep: '#2A5A44',
+  amber: '#9A6612',
+  amberSoft: '#FAEFDC',
+  red: '#AE3B31',
+  redSoft: '#FBEAE7',
+  blue: '#2F6285',
+  blueSoft: '#E8F0F6',
+  ink: '#18231D',
+  inkElevated: '#243228',
   onInk: '#FFFFFF',
-  shadow: '#1B1B1D',
+  shadowAmbient: 'rgba(21,23,26,1)',
+  shadowKey: 'rgba(21,23,26,1)',
 };
 
 const dark: Theme = {
   dark: true,
-  bg: '#131513',
-  surface: '#1C1F1D',
-  surfaceSunken: '#252926',
-  border: '#2C312E',
-  borderStrong: '#3A403C',
-  text: '#EDEFEC',
-  textSecondary: '#A0A6A2',
-  textTertiary: '#71776F',
-  sage: '#7FB394',
-  sageSoft: '#1B2A21',
-  amber: '#D6A34E',
-  amberSoft: '#2C2517',
-  red: '#E08079',
-  redSoft: '#2E1C1A',
-  blue: '#7FAECE',
-  blueSoft: '#17242D',
-  ink: '#EDEFEC',
-  onInk: '#131513',
-  shadow: '#000000',
+  bg: '#0D100E',
+  bgAlt: '#111512',
+  // In dark mode elevation is carried by lightness, not shadow — shadows are
+  // invisible on a near-black ground, so each layer steps up instead.
+  surface: '#171B18',
+  surfaceRaised: '#1E2320',
+  surfaceSunken: '#121614',
+  glass: 'rgba(23,27,24,0.72)',
+  hairline: 'rgba(255,255,255,0.06)',
+  border: 'rgba(255,255,255,0.11)',
+  text: '#ECEFEC',
+  textSecondary: '#9DA5A0',
+  textTertiary: '#6B7370',
+  sage: '#79BE97',
+  sageSoft: '#17281F',
+  sageDeep: '#9BD4B2',
+  amber: '#DEAE5C',
+  amberSoft: '#2A2317',
+  red: '#E58A81',
+  redSoft: '#2C1B19',
+  blue: '#84B4D4',
+  blueSoft: '#15232C',
+  ink: '#EDF0ED',
+  inkElevated: '#DDE2DE',
+  onInk: '#0D100E',
+  shadowAmbient: 'rgba(0,0,0,1)',
+  shadowKey: 'rgba(0,0,0,1)',
 };
 
 export function useTheme(): Theme {
   return useColorScheme() === 'dark' ? dark : light;
 }
 
-/** 4pt base. Home screens breathe; dense screens step down, never below `sm`. */
 export const spacing = {
   xs: 4,
   sm: 8,
   md: 12,
   lg: 16,
   xl: 22,
-  xxl: 32,
+  xxl: 30,
   xxxl: 44,
 } as const;
 
+/** Softer, larger radii than a utility app would use. Corners read as expensive. */
 export const radius = {
-  sm: 10,
-  md: 14,
-  lg: 20,
-  xl: 26,
+  sm: 12,
+  md: 16,
+  lg: 22,
+  xl: 28,
+  xxl: 34,
   pill: 999,
 } as const;
 
 /**
- * Type scale. The system font is the point — SF Pro on iOS, Roboto on Android —
- * because a custom typeface is the fastest way to make a utility app feel like a
- * brand exercise.
+ * Type scale.
+ *
+ * The system font is the point — SF Pro on iOS, Roboto on Android. A custom
+ * typeface is the fastest way to make a utility app feel like a brand exercise.
+ * What does the work instead is range: a 56px score against 12px labels, with
+ * tight negative tracking on everything large.
  */
 export const type = {
-  hero: { fontSize: 44, fontWeight: '600' as const, letterSpacing: -1.4 },
-  display: { fontSize: 32, fontWeight: '600' as const, letterSpacing: -0.8 },
-  title: { fontSize: 26, fontWeight: '600' as const, letterSpacing: -0.5 },
-  heading: { fontSize: 19, fontWeight: '600' as const, letterSpacing: -0.3 },
-  subheading: { fontSize: 16, fontWeight: '600' as const, letterSpacing: -0.1 },
-  body: { fontSize: 15.5, fontWeight: '400' as const, lineHeight: 22 },
-  bodyStrong: { fontSize: 15.5, fontWeight: '500' as const },
-  small: { fontSize: 13.5, fontWeight: '400' as const, lineHeight: 19 },
+  mega: { fontSize: 56, fontWeight: '700' as const, letterSpacing: -2.4 },
+  hero: { fontSize: 40, fontWeight: '700' as const, letterSpacing: -1.5 },
+  display: { fontSize: 30, fontWeight: '700' as const, letterSpacing: -1 },
+  title: { fontSize: 25, fontWeight: '700' as const, letterSpacing: -0.7 },
+  heading: { fontSize: 18.5, fontWeight: '600' as const, letterSpacing: -0.4 },
+  subheading: { fontSize: 16, fontWeight: '600' as const, letterSpacing: -0.2 },
+  body: { fontSize: 15.5, fontWeight: '400' as const, lineHeight: 22.5 },
+  bodyStrong: { fontSize: 15.5, fontWeight: '600' as const, letterSpacing: -0.1 },
+  small: { fontSize: 13.5, fontWeight: '400' as const, lineHeight: 19.5 },
   smallStrong: { fontSize: 13.5, fontWeight: '600' as const },
-  label: { fontSize: 12, fontWeight: '600' as const, letterSpacing: 0.6 },
+  label: { fontSize: 11.5, fontWeight: '700' as const, letterSpacing: 0.8 },
 };
 
-/** A soft, low-contrast lift. Cards should feel placed, not cut out. */
-export const elevation = (theme: Theme, level: 1 | 2 = 1) => ({
-  shadowColor: theme.shadow,
-  shadowOpacity: theme.dark ? 0.3 : level === 1 ? 0.045 : 0.09,
-  shadowRadius: level === 1 ? 10 : 20,
-  shadowOffset: { width: 0, height: level === 1 ? 2 : 6 },
-  elevation: level === 1 ? 1 : 4,
+/** Figures line up in columns. Essential anywhere numbers stack. */
+export const tabular = Platform.select({
+  ios: { fontVariant: ['tabular-nums' as const] },
+  default: { fontVariant: ['tabular-nums' as const] },
 });
+
+/**
+ * Two-layer shadow: a wide soft ambient plus a tighter key.
+ *
+ * A single shadow reads as a drop shadow; two read as an object resting on a
+ * surface. On dark grounds shadows are invisible, so elevation there comes from
+ * the surface tokens instead and these collapse to almost nothing.
+ */
+export function elevation(theme: Theme, level: 0 | 1 | 2 | 3 = 1) {
+  if (level === 0) return {};
+  if (theme.dark) {
+    return {
+      shadowColor: theme.shadowKey,
+      shadowOpacity: 0.4,
+      shadowRadius: level * 8,
+      shadowOffset: { width: 0, height: level * 2 },
+      elevation: level,
+    };
+  }
+  const spec = {
+    1: { opacity: 0.05, radius: 12, y: 3 },
+    2: { opacity: 0.07, radius: 24, y: 8 },
+    3: { opacity: 0.1, radius: 40, y: 16 },
+  }[level];
+  return {
+    shadowColor: theme.shadowKey,
+    shadowOpacity: spec.opacity,
+    shadowRadius: spec.radius,
+    shadowOffset: { width: 0, height: spec.y },
+    elevation: level * 3,
+  };
+}
+
+/* -------------------------------------------------------------------------
+ * Gradients
+ * ---------------------------------------------------------------------- */
+
+export type GradientStops = readonly [string, string, ...string[]];
+
+/**
+ * The dashboard hero. A deep tonal green rather than a brand gradient — it reads
+ * as material (a dark surface catching light) rather than as decoration.
+ */
+export function heroGradient(theme: Theme): GradientStops {
+  return theme.dark
+    ? (['#1B2620', '#141A16', '#0F1411'] as const)
+    : (['#2C4034', '#1E2C24', '#18231D'] as const);
+}
+
+/** A soft tint behind an icon or tile, derived from a status colour. */
+export function tintGradient(theme: Theme, key: StatusKey): GradientStops {
+  const tone = toneFor(theme, key);
+  return [tone.bg, theme.dark ? theme.surface : '#FFFFFF'] as const;
+}
+
+/** Ring stroke gradient — brighter at the leading edge so the arc has direction. */
+export function ringGradient(theme: Theme, key: StatusKey): [string, string] {
+  switch (key) {
+    case 'good':
+      return [theme.sageDeep, theme.sage];
+    case 'attention':
+      return [theme.amber, theme.dark ? '#EFC77E' : '#C58A2B'];
+    case 'urgent':
+      return [theme.red, theme.dark ? '#F0A79F' : '#C9564B'];
+    default:
+      return [theme.textTertiary, theme.textSecondary];
+  }
+}
 
 /* -------------------------------------------------------------------------
  * Status
@@ -176,11 +271,11 @@ export function toneFor(theme: Theme, key: StatusKey, label?: string): Tone {
 }
 
 /**
- * Health status → status key and the plain-language label shown to the owner.
+ * Health status → status key and the words shown to the owner.
  *
  * The labels avoid arithmetic. "Planning recommended" tells someone what to do;
- * "42.3% health" invites them to argue with a number the app cannot actually
- * defend to that precision.
+ * "42.3% health" invites them to argue with a number the app cannot defend to that
+ * precision.
  */
 export function healthStatus(status: HealthStatus): { key: StatusKey; label: string } {
   switch (status) {
@@ -193,7 +288,7 @@ export function healthStatus(status: HealthStatus): { key: StatusKey; label: str
     case 'plan_replacement':
       return { key: 'urgent', label: 'Planning recommended' };
     default:
-      return { key: 'neutral', label: 'Not enough information' };
+      return { key: 'neutral', label: 'Not enough info' };
   }
 }
 
@@ -201,12 +296,14 @@ export function urgencyStatus(
   urgency: TaskUrgency,
   criticality: 'safety' | 'high' | 'medium' | 'low',
 ): { key: StatusKey; label: string } {
-  if (urgency === 'overdue') return { key: 'urgent', label: 'Overdue' };
+  if (urgency === 'overdue') {
+    return { key: 'urgent', label: criticality === 'safety' ? 'Overdue — safety' : 'Overdue' };
+  }
   if (urgency === 'due_soon') {
-    // A safety item coming due reads urgent before it is late; nothing else does.
-    return criticality === 'safety'
-      ? { key: 'urgent', label: 'Due now' }
-      : { key: 'attention', label: 'Due soon' };
+    // Amber, not red, even for safety work. Red is for things that are wrong now;
+    // a detector test due in three days is a plan, and spending red on it is how a
+    // colour stops meaning anything.
+    return { key: 'attention', label: criticality === 'safety' ? 'Due now — safety' : 'Due soon' };
   }
   if (urgency === 'upcoming') return { key: 'neutral', label: 'Upcoming' };
   return { key: 'neutral', label: 'Scheduled' };
@@ -244,7 +341,6 @@ export const CATEGORY_LABEL: Record<string, string> = {
   unassigned: 'Not linked',
 };
 
-/** Thin line icons only — Ionicons' outline set. */
 export const CATEGORY_ICON: Record<string, string> = {
   hvac: 'thermometer-outline',
   water_heater: 'water-outline',
@@ -266,3 +362,12 @@ export function greeting(now: Date = new Date()): string {
   if (hour < 18) return 'Good afternoon';
   return 'Good evening';
 }
+
+/** Motion. Short, spring-like, never showy. */
+export const motion = {
+  fast: 180,
+  base: 320,
+  slow: 620,
+  /** Stagger between list items entering. */
+  stagger: 55,
+} as const;

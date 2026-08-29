@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useMemo } from 'react';
-import { Pressable, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { formatDate, relativeDayLabel, today } from '../../src/core/dates';
 import { resolveComponentAge } from '../../src/core/engine/age';
 import { computeForecast } from '../../src/core/engine/forecast';
@@ -16,20 +16,22 @@ import {
   BodyStrong,
   Button,
   Card,
-  Display,
   Divider,
   EmptyState,
+  Enter,
   Heading,
-  ListRow,
+  HeroPanel,
+  IconTile,
   Row,
   Screen,
   ScoreRing,
   SectionTitle,
   Small,
   StatusPill,
-  Stat,
   Tertiary,
+  Tile,
   Title,
+  Touchable,
 } from '../../src/ui/components';
 import {
   CATEGORY_ICON,
@@ -38,22 +40,25 @@ import {
   healthStatus,
   radius,
   scoreBand,
-  scoreColor,
   spacing,
+  tabular,
   toneFor,
+  type,
   urgencyStatus,
   useTheme,
 } from '../../src/ui/theme';
+import { Text } from 'react-native';
 
 /**
  * The home dashboard.
  *
  * One question, answered above the fold: what does my house need right now?
  *
- * Order is the whole design. Health first, because it is the summary judgement.
- * Then the specific things that need attention, because that is the actionable
- * part. Then what is coming, then the systems themselves, then the assistant —
- * which sits near the bottom on purpose. The house is the subject of this screen.
+ * The hero carries the summary judgement and gives the screen a top — without one
+ * focal moment a dashboard is a stack of equally-weighted cards, which is exactly
+ * what makes utility software feel flat. Below it, order is the design: what needs
+ * attention, then what's coming, then the numbers, then the systems themselves.
+ * The assistant sits last on purpose. The house is the subject here.
  */
 export default function Dashboard() {
   const theme = useTheme();
@@ -85,15 +90,11 @@ export default function Dashboard() {
   const hasEquipment = record.components.length > 0;
 
   /*
-   * What counts as "needs attention" is the most consequential judgement on this
-   * screen. Everything that is merely due soon does not qualify: on a freshly
-   * scanned home a dozen tasks have never been logged and therefore show as due
-   * today, and surfacing all of them as problems turns the first thing a new user
-   * sees into a wall of alarm — which teaches them to ignore the section entirely.
-   *
-   * So attention means genuinely overdue work, plus systems the health engine has
-   * flagged. Due-soon work is real, and it belongs in "Coming up" where it reads as
-   * a plan rather than a failure.
+   * What counts as "needs attention" is the most consequential judgement here.
+   * Merely due-soon work does not qualify: on a freshly scanned home a dozen tasks
+   * have never been logged and therefore show as due today, and surfacing all of
+   * them as problems turns the first screen into a wall of alarm — which teaches
+   * people to ignore the section entirely.
    */
   const attentionSystems = health.components.filter(
     (c) => c.status === 'aging' || c.status === 'plan_replacement',
@@ -102,80 +103,114 @@ export default function Dashboard() {
     (t) => t.urgency === 'overdue' || (t.urgency === 'due_soon' && t.criticality === 'safety'),
   );
   const attentionCount = attentionSystems.length + attentionTasks.length;
-
-  const comingUp = tasks.filter((t) => !attentionTasks.includes(t)).slice(0, 5);
+  const comingUp = tasks.filter((t) => !attentionTasks.includes(t)).slice(0, 4);
 
   const band = scoreBand(health.score);
-  // Greet the owner if we know them. The house nickname is not a person's name —
-  // "Good afternoon, Marsh Point" is worse than no name at all.
   const firstName = record.home.ownerName?.trim().split(' ')[0];
+  const systems = groupByCategory(record.components);
 
   return (
-    <Screen gap={spacing.xl}>
-      {/* Greeting */}
-      <View style={{ gap: 2, marginTop: spacing.sm }}>
-        <Title>{firstName ? `${greeting()}, ${firstName}` : greeting()}</Title>
-        <Small>{record.home.addressLine1 ?? record.home.nickname}</Small>
-      </View>
+    <Screen bleedTop gap={spacing.xl}>
+      {/* ---- Hero -------------------------------------------------------- */}
+      <HeroPanel>
+        <View style={{ gap: spacing.xl }}>
+          <View style={{ gap: 3 }}>
+            <Text style={[type.title, { color: '#FFFFFF' }]}>
+              {firstName ? `${greeting()}, ${firstName}` : greeting()}
+            </Text>
+            <Row gap={6}>
+              <Ionicons name="location-outline" size={13} color="rgba(255,255,255,0.6)" />
+              <Text style={[type.small, { color: 'rgba(255,255,255,0.68)' }]}>
+                {record.home.addressLine1 ?? record.home.nickname}
+              </Text>
+            </Row>
+          </View>
+
+          {hasEquipment ? (
+            <Touchable onPress={() => router.push('/health')} scaleTo={0.985}>
+              <Row gap={spacing.xl}>
+                <ScoreRing
+                  score={health.score}
+                  label={band.label}
+                  status={band.key}
+                  size={132}
+                  onDark
+                />
+                <View style={{ flex: 1, gap: spacing.sm }}>
+                  <Text style={[type.label, { color: 'rgba(255,255,255,0.5)' }]}>HOME HEALTH</Text>
+                  <Text style={[type.small, { color: 'rgba(255,255,255,0.86)' }]} numberOfLines={5}>
+                    {health.summary}
+                  </Text>
+                  <Row gap={4}>
+                    <Text style={[type.smallStrong, { color: '#FFFFFF' }]}>See breakdown</Text>
+                    <Ionicons name="chevron-forward" size={13} color="#FFFFFF" />
+                  </Row>
+                </View>
+              </Row>
+            </Touchable>
+          ) : null}
+        </View>
+      </HeroPanel>
 
       {!hasEquipment ? (
-        <EmptyState
-          icon="camera-outline"
-          title="Let's build your Home Record"
-          body="Walk the house and photograph the labels — the nameplate on the water heater, the sticker on the furnace. Your camera builds the inventory for you."
-          action={<Button label="Scan My Home" icon="scan-outline" onPress={() => router.push('/scan/guided')} />}
-        />
+        <Enter>
+          <EmptyState
+            icon="scan-outline"
+            title="Let's build your Home Record"
+            body="Walk the house and photograph the labels — the nameplate on the water heater, the sticker on the furnace. Your camera builds the inventory for you."
+            action={
+              <Button label="Scan My Home" icon="scan-outline" size="lg" onPress={() => router.push('/scan/guided')} />
+            }
+          />
+        </Enter>
       ) : (
         <>
-          {/* Home health — the hero */}
-          <Card onPress={() => router.push('/health')} padding={spacing.xl} raised={2}>
-            <Row gap={spacing.xl}>
-              <ScoreRing
-                score={health.score}
-                label={band.label}
-                color={scoreColor(theme, health.score)}
-                size={122}
-              />
-              <View style={{ flex: 1, gap: spacing.sm }}>
-                <Heading>Home Health</Heading>
-                <Small numberOfLines={4}>{health.summary}</Small>
-                <Row gap={spacing.xs}>
-                  <Small style={{ color: theme.blue, fontWeight: '600' }}>See breakdown</Small>
-                  <Ionicons name="chevron-forward" size={14} color={theme.blue} />
-                </Row>
-              </View>
-            </Row>
-          </Card>
-
-          {/* Needs attention */}
+          {/* ---- Needs attention ------------------------------------------ */}
           {attentionCount > 0 ? (
             <View style={{ gap: spacing.md }}>
-              <Row justify="space-between">
-                <Heading>
-                  {attentionCount} {attentionCount === 1 ? 'thing needs' : 'things need'} attention
-                </Heading>
-              </Row>
+              <Enter>
+                <Row gap={spacing.sm}>
+                  <Heading>
+                    {attentionCount} {attentionCount === 1 ? 'thing needs' : 'things need'} attention
+                  </Heading>
+                </Row>
+              </Enter>
 
-              {attentionSystems.slice(0, 3).map((system) => {
+              {attentionSystems.slice(0, 3).map((system, index) => {
                 const status = healthStatus(system.status);
                 return (
-                  <Card key={system.componentId} onPress={() => router.push(`/component/${system.componentId}`)}>
-                    <ListRow
+                  <Enter key={system.componentId} index={index}>
+                    <AttentionCard
+                      icon={(CATEGORY_ICON[system.category] ?? 'cube-outline') as never}
                       status={status.key}
                       title={system.name}
                       subtitle={status.label}
-                      trailing={
-                        <Small style={{ color: theme.blue, fontWeight: '600' }}>View</Small>
-                      }
+                      action="View"
                       onPress={() => router.push(`/component/${system.componentId}`)}
                     />
-                  </Card>
+                  </Enter>
                 );
               })}
 
-              {attentionTasks.slice(0, 3).map((task) => (
-                <AttentionTask key={task.key} task={task} asOf={asOf} />
-              ))}
+              {attentionTasks.slice(0, 3).map((task, index) => {
+                const status = urgencyStatus(task.urgency, task.criticality);
+                return (
+                  <Enter key={task.key} index={attentionSystems.length + index}>
+                    <AttentionCard
+                      icon="alarm-outline"
+                      status={status.key}
+                      title={task.title}
+                      subtitle={
+                        task.urgency === 'overdue'
+                          ? `Overdue — was due ${relativeDayLabel(asOf, task.dueDate)}`
+                          : `Due ${relativeDayLabel(asOf, task.dueDate)}`
+                      }
+                      action={task.diy.proOnlyReason ? 'Schedule' : 'Do it'}
+                      onPress={() => router.push(`/task/${encodeURIComponent(task.key)}`)}
+                    />
+                  </Enter>
+                );
+              })}
 
               {attentionCount > 6 ? (
                 <Button
@@ -186,129 +221,196 @@ export default function Dashboard() {
               ) : null}
             </View>
           ) : (
-            <Card>
-              <Row gap={spacing.md}>
-                <Ionicons name="checkmark-circle" size={22} color={theme.sage} />
-                <View style={{ flex: 1 }}>
-                  <BodyStrong>Nothing needs attention</BodyStrong>
-                  <Small>Everything on your calendar is up to date.</Small>
-                </View>
-              </Row>
-            </Card>
+            <Enter>
+              <Card>
+                <Row gap={spacing.md}>
+                  <IconTile icon="checkmark-circle-outline" status="good" size={40} />
+                  <View style={{ flex: 1 }}>
+                    <BodyStrong>Nothing needs attention</BodyStrong>
+                    <Small>Everything on your calendar is up to date.</Small>
+                  </View>
+                </Row>
+              </Card>
+            </Enter>
           )}
 
-          {/* Coming up */}
+          {/* ---- Coming up ------------------------------------------------ */}
           {comingUp.length > 0 ? (
-            <View style={{ gap: spacing.md }}>
-              <SectionTitle title="Coming up" action="All tasks" onAction={() => router.push('/(tabs)/tasks')} />
-              <Card padding={spacing.lg}>
-                {comingUp.map((task, index) => (
-                  <View key={task.key} style={{ gap: spacing.md }}>
-                    {index > 0 ? <Divider /> : null}
-                    <Pressable
-                      onPress={() => router.push(`/task/${encodeURIComponent(task.key)}`)}
-                      style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1, paddingVertical: 2 })}
-                    >
-                      <Row justify="space-between" gap={spacing.md}>
-                        <View style={{ width: 58 }}>
-                          <Small style={{ fontWeight: '600', color: theme.textSecondary }}>
-                            {formatDate(task.dueDate).replace(/, \d{4}$/, '')}
-                          </Small>
-                        </View>
-                        <BodyStrong numberOfLines={1} style={{ flex: 1 }}>
-                          {task.title}
-                        </BodyStrong>
-                        <Ionicons name="chevron-forward" size={15} color={theme.textTertiary} />
-                      </Row>
-                    </Pressable>
-                  </View>
-                ))}
-              </Card>
-            </View>
+            <Enter index={1}>
+              <View style={{ gap: spacing.md }}>
+                <SectionTitle title="Coming up" action="All" onAction={() => router.push('/(tabs)/tasks')} />
+                <Card padding={spacing.lg}>
+                  {comingUp.map((task, index) => (
+                    <View key={task.key} style={{ gap: spacing.md }}>
+                      {index > 0 ? <Divider inset={54} /> : null}
+                      <Touchable
+                        onPress={() => router.push(`/task/${encodeURIComponent(task.key)}`)}
+                        scaleTo={0.99}
+                      >
+                        <Row gap={spacing.md} justify="space-between">
+                          <DateChip date={task.dueDate} />
+                          <View style={{ flex: 1, gap: 1 }}>
+                            <BodyStrong numberOfLines={1}>{task.title}</BodyStrong>
+                            {task.componentName ? (
+                              <Tertiary numberOfLines={1}>{task.componentName}</Tertiary>
+                            ) : null}
+                          </View>
+                          <Ionicons name="chevron-forward" size={15} color={theme.textTertiary} />
+                        </Row>
+                      </Touchable>
+                    </View>
+                  ))}
+                </Card>
+              </View>
+            </Enter>
           ) : null}
 
-          {/* Ownership figures — the serious data underneath the calm surface */}
-          <Card>
-            <Row>
-              <Stat
-                value={formatApprox(forecast.horizons.oneYear.totalCents).replace('~', '')}
-                label="Next 12 months"
-              />
-              <Stat
-                value={`${formatMoney(forecast.suggestedMonthlyReserveCents)}/mo`}
-                label="Suggested reserve"
-              />
-              <Stat value={String(record.components.length)} label="Systems tracked" />
-            </Row>
-            <Divider />
-            <Pressable onPress={() => router.push('/costs')}>
-              <Row justify="space-between">
-                <Small style={{ color: theme.blue, fontWeight: '600' }}>See cost forecast</Small>
-                <Ionicons name="chevron-forward" size={15} color={theme.blue} />
+          {/* ---- Ownership figures, as a bento row ------------------------ */}
+          <Enter index={2}>
+            <View style={{ gap: spacing.md }}>
+              <SectionTitle title="Ownership" action="Costs" onAction={() => router.push('/costs')} />
+              <Row gap={spacing.md} align="stretch">
+                <Tile
+                  icon="wallet-outline"
+                  value={formatApprox(forecast.horizons.oneYear.totalCents).replace('~', '')}
+                  label="Likely, next 12 months"
+                  onPress={() => router.push('/costs')}
+                />
+                <Tile
+                  icon="trending-up-outline"
+                  status="good"
+                  value={`${formatMoney(forecast.suggestedMonthlyReserveCents)}`}
+                  label="Suggested monthly reserve"
+                  onPress={() => router.push('/costs')}
+                />
               </Row>
-            </Pressable>
-          </Card>
+              <Row gap={spacing.md} align="stretch">
+                <Tile
+                  icon="cube-outline"
+                  value={String(record.components.length)}
+                  label="Systems tracked"
+                  onPress={() => router.push('/health')}
+                />
+                <Tile
+                  icon="document-text-outline"
+                  value={`${Math.round(health.dataConfidence * 100)}%`}
+                  label="Backed by documented dates"
+                  onPress={() => router.push('/health')}
+                />
+              </Row>
+            </View>
+          </Enter>
 
-          {/* Your home */}
-          <View style={{ gap: spacing.md }}>
-            <SectionTitle title="Your home" />
-            {groupByCategory(record.components).map(([category, components]) => (
-              <SystemCard
-                key={category}
-                category={category}
-                components={components}
-                health={derived.health}
-                tasks={tasks}
-                asOf={asOf}
-                onPress={(id) => router.push(`/component/${id}`)}
-              />
-            ))}
-          </View>
+          {/* ---- Your home ------------------------------------------------ */}
+          <Enter index={3}>
+            <View style={{ gap: spacing.md }}>
+              <SectionTitle title="Your home" />
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md }}>
+                {systems.map(([category, components]) => (
+                  <SystemTile
+                    key={category}
+                    category={category}
+                    components={components}
+                    health={health}
+                    tasks={tasks}
+                    asOf={asOf}
+                    onPress={(id) => router.push(`/component/${id}`)}
+                  />
+                ))}
+              </View>
+            </View>
+          </Enter>
         </>
       )}
 
-      <AskRow
-        prompt="What should I take care of this weekend?"
-        onPress={() => router.push('/assistant')}
-      />
+      <Enter index={4}>
+        <AskRow
+          prompt="What should I take care of this weekend?"
+          onPress={() => router.push('/assistant')}
+        />
+      </Enter>
     </Screen>
   );
 }
 
-function AttentionTask({ task, asOf }: { task: ScheduledTask; asOf: string }) {
+function AttentionCard({
+  icon,
+  status,
+  title,
+  subtitle,
+  action,
+  onPress,
+}: {
+  icon: keyof typeof Ionicons.glyphMap;
+  status: 'good' | 'attention' | 'urgent' | 'neutral' | 'info';
+  title: string;
+  subtitle: string;
+  action: string;
+  onPress: () => void;
+}) {
   const theme = useTheme();
-  const router = useRouter();
-  const status = urgencyStatus(task.urgency, task.criticality);
+  const tone = toneFor(theme, status);
   return (
-    <Card onPress={() => router.push(`/task/${encodeURIComponent(task.key)}`)}>
-      <ListRow
-        status={status.key}
-        title={task.title}
-        subtitle={
-          task.urgency === 'overdue'
-            ? `Overdue — was due ${relativeDayLabel(asOf, task.dueDate)}`
-            : `Due ${relativeDayLabel(asOf, task.dueDate)}`
-        }
-        trailing={
-          <Small style={{ color: theme.blue, fontWeight: '600' }}>
-            {task.diy.proOnlyReason ? 'Schedule' : 'Do it'}
-          </Small>
-        }
-        onPress={() => router.push(`/task/${encodeURIComponent(task.key)}`)}
-      />
+    <Card
+      onPress={onPress}
+      padding={spacing.lg}
+      // A status edge that follows the corner radius, so it reads as part of the
+      // card rather than a tab stuck to its side.
+      style={{ borderLeftWidth: 3, borderLeftColor: tone.fg }}
+    >
+      <Row gap={spacing.md} justify="space-between">
+        <Row gap={spacing.md} style={{ flex: 1 }}>
+          <IconTile icon={icon} status={status} size={40} />
+          <View style={{ flex: 1, gap: 2 }}>
+            <BodyStrong numberOfLines={1}>{title}</BodyStrong>
+            <Small numberOfLines={1} style={{ color: tone.fg }}>
+              {subtitle}
+            </Small>
+          </View>
+        </Row>
+        <Row gap={2}>
+          <Small style={{ color: theme.blue, fontWeight: '600' }}>{action}</Small>
+          <Ionicons name="chevron-forward" size={14} color={theme.blue} />
+        </Row>
+      </Row>
     </Card>
   );
 }
 
+/** Month + day stacked in a tinted square. Reads faster than a date string. */
+function DateChip({ date }: { date: string }) {
+  const theme = useTheme();
+  const label = formatDate(date);
+  const [month, day] = label.split(' ');
+  return (
+    <View
+      style={{
+        width: 42,
+        height: 42,
+        borderRadius: radius.sm,
+        backgroundColor: theme.surfaceSunken,
+        alignItems: 'center',
+        justifyContent: 'center',
+      }}
+    >
+      <Text style={{ fontSize: 10, fontWeight: '700', letterSpacing: 0.4, color: theme.textTertiary }}>
+        {(month ?? '').toUpperCase()}
+      </Text>
+      <Text style={[{ fontSize: 16, fontWeight: '700', letterSpacing: -0.5, color: theme.text }, tabular]}>
+        {(day ?? '').replace(',', '')}
+      </Text>
+    </View>
+  );
+}
+
 /**
- * One card per system, not per box.
+ * One tile per system, two across.
  *
- * A homeowner thinks "my HVAC", not "my condenser and my air handler". Grouping by
- * category keeps the dashboard scannable in a house with twenty tracked items, and
- * the card surfaces the worst status inside the group so nothing hides behind a
- * healthy sibling.
+ * A homeowner thinks "my HVAC", not "my condenser and my air handler", so the tile
+ * groups by category and takes the status of its worst member — nothing hides
+ * behind a healthy sibling.
  */
-function SystemCard({
+function SystemTile({
   category,
   components,
   health,
@@ -326,81 +428,66 @@ function SystemCard({
   const theme = useTheme();
   const record = useHomeRecord();
 
-  // The group takes the status of its worst member.
   const memberHealth = health.components.filter((c) => components.some((m) => m.id === c.componentId));
   const worst = memberHealth.reduce<(typeof memberHealth)[number] | undefined>(
     (acc, c) => (!acc || c.score < acc.score ? c : acc),
     undefined,
   );
   const status = healthStatus(worst?.status ?? 'unknown');
-  const tone = toneFor(theme, status.key);
 
   const lead = components[0]!;
   const age = record ? resolveComponentAge(lead, record.home, asOf) : undefined;
   const nextTask = tasks
     .filter((t) => components.some((c) => c.id === t.componentId))
-    .find((t) => t.urgency === 'overdue' || t.urgency === 'due_soon' || t.urgency === 'upcoming');
+    .find((t) => t.urgency !== 'scheduled');
 
-  const descriptor = [lead.manufacturer, lead.type].filter(Boolean).join(' ');
-  const installed =
-    lead.installedOn
-      ? `Installed ${lead.installedOn.slice(0, 4)}`
-      : age?.years !== undefined
-        ? `Approx. ${Math.round(age.years)} years old`
-        : 'Age not recorded';
+  const subtitle = lead.manufacturer
+    ? `${lead.manufacturer}${components.length > 1 ? ` +${components.length - 1}` : ''}`
+    : lead.type;
+  const ageLine = lead.installedOn
+    ? `Installed ${lead.installedOn.slice(0, 4)}`
+    : age?.years !== undefined
+      ? `~${Math.round(age.years)} yrs old`
+      : 'Age unknown';
 
   return (
-    <Card onPress={() => onPress(worst?.componentId ?? lead.id)}>
+    <Touchable
+      onPress={() => onPress(worst?.componentId ?? lead.id)}
+      style={{
+        // Two across, accounting for the 12pt gutter.
+        width: '48%',
+        flexGrow: 1,
+        backgroundColor: theme.surface,
+        borderRadius: radius.lg,
+        borderWidth: StyleSheet.hairlineWidth,
+        borderColor: theme.hairline,
+        padding: spacing.lg,
+        gap: spacing.md,
+      }}
+    >
       <Row justify="space-between" align="flex-start">
-        <Row gap={spacing.md} style={{ flex: 1 }}>
-          <View
-            style={{
-              width: 40,
-              height: 40,
-              borderRadius: radius.md,
-              backgroundColor: tone.bg,
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            <Ionicons
-              name={(CATEGORY_ICON[category] ?? 'cube-outline') as never}
-              size={20}
-              color={tone.fg}
-            />
-          </View>
-          <View style={{ flex: 1, gap: 2 }}>
-            <Subheadingish>{CATEGORY_LABEL[category] ?? category}</Subheadingish>
-            <Small numberOfLines={1}>
-              {descriptor}
-              {components.length > 1 ? ` + ${components.length - 1} more` : ''}
-            </Small>
-            <Tertiary>{installed}</Tertiary>
-          </View>
-        </Row>
-        <Ionicons name="chevron-forward" size={16} color={theme.textTertiary} />
+        <IconTile icon={(CATEGORY_ICON[category] ?? 'cube-outline') as never} status={status.key} size={40} />
+        <Dotish status={status.key} />
       </Row>
-
-      <Row justify="space-between" gap={spacing.md}>
-        <StatusPill status={status.key} label={status.label} />
-        {nextTask ? (
-          <Small numberOfLines={1} style={{ flexShrink: 1, textAlign: 'right' }}>
-            {nextTask.title} · {relativeDayLabel(asOf, nextTask.dueDate)}
-          </Small>
-        ) : null}
-      </Row>
-    </Card>
+      <View style={{ gap: 2 }}>
+        <BodyStrong numberOfLines={1}>{CATEGORY_LABEL[category] ?? category}</BodyStrong>
+        <Tertiary numberOfLines={1}>{subtitle}</Tertiary>
+        <Tertiary numberOfLines={1}>{ageLine}</Tertiary>
+      </View>
+      <StatusPill status={status.key} label={status.label} />
+      {nextTask ? (
+        <Tertiary numberOfLines={1}>
+          {nextTask.title} · {relativeDayLabel(asOf, nextTask.dueDate)}
+        </Tertiary>
+      ) : null}
+    </Touchable>
   );
 }
 
-/** Local alias so the system card's title weight stays distinct from list rows. */
-function Subheadingish({ children }: { children: React.ReactNode }) {
+function Dotish({ status }: { status: 'good' | 'attention' | 'urgent' | 'neutral' | 'info' }) {
   const theme = useTheme();
-  return (
-    <Body style={{ fontWeight: '600', color: theme.text, fontSize: 16.5, letterSpacing: -0.2 }}>
-      {children}
-    </Body>
-  );
+  const tone = toneFor(theme, status);
+  return <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: tone.fg, marginTop: 6 }} />;
 }
 
 function groupByCategory(components: HomeComponent[]): [ComponentCategory, HomeComponent[]][] {
@@ -411,7 +498,7 @@ function groupByCategory(components: HomeComponent[]): [ComponentCategory, HomeC
     if (bucket) bucket.push(component);
     else groups.set(component.category, [component]);
   }
-  // Consequence order, so the roof and the heating are not below the microwave.
+  // Consequence order — the roof and the heating never sit below the microwave.
   const order: ComponentCategory[] = [
     'hvac',
     'water_heater',
@@ -426,7 +513,5 @@ function groupByCategory(components: HomeComponent[]): [ComponentCategory, HomeC
     'structure',
     'other',
   ];
-  return [...groups.entries()].sort(
-    ([a], [b]) => order.indexOf(a) - order.indexOf(b),
-  );
+  return [...groups.entries()].sort(([a], [b]) => order.indexOf(a) - order.indexOf(b));
 }

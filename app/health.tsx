@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useMemo } from 'react';
-import { View } from 'react-native';
+import { Text, View } from 'react-native';
 import { today } from '../src/core/dates';
 import { computeHomeHealth } from '../src/core/engine/health';
 import { useHomeRecord } from '../src/state/store';
@@ -9,6 +9,8 @@ import {
   BarRow,
   Body,
   Card,
+  Enter,
+  HeroPanel,
   Divider,
   EmptyState,
   Label,
@@ -20,7 +22,7 @@ import {
   Tertiary,
   Title,
 } from '../src/ui/components';
-import { healthStatus, scoreBand, scoreColor, spacing, toneFor, useTheme } from '../src/ui/theme';
+import { healthStatus, scoreBand, spacing, tabular, toneFor, useTheme } from '../src/ui/theme';
 
 /**
  * Home Health, explained.
@@ -60,17 +62,35 @@ export default function HealthScreen() {
 
   const band = scoreBand(health.score);
 
+  const documentedPct = Math.round(health.dataConfidence * 100);
+  const attention = health.components.filter(
+    (c) => c.status === 'aging' || c.status === 'plan_replacement' || c.status === 'unknown',
+  );
+
   return (
-    <Screen gap={spacing.xl}>
-      <Card style={{ alignItems: 'center', gap: spacing.lg }} padding={spacing.xxl} raised={2}>
-        <ScoreRing
-          score={health.score}
-          label={band.label}
-          color={scoreColor(theme, health.score)}
-          size={168}
-        />
-        <Body style={{ textAlign: 'center' }}>{health.summary}</Body>
-      </Card>
+    <Screen gap={spacing.xl} bleedTop>
+      {/* The same dark panel as the dashboard, so the score reads as one object
+          the user has followed from one screen to the next. */}
+      <HeroPanel>
+        <View style={{ alignItems: 'center', gap: spacing.lg, paddingTop: spacing.sm }}>
+          <ScoreRing score={health.score} label={band.label} status={band.key} size={186} onDark />
+          <Text
+            style={{
+              color: 'rgba(255,255,255,0.86)',
+              fontSize: 15,
+              lineHeight: 22,
+              textAlign: 'center',
+            }}
+          >
+            {health.summary}
+          </Text>
+          <Row gap={spacing.xl}>
+            <HeroStat value={`${health.components.length}`} label="systems" />
+            <HeroStat value={`${attention.length}`} label="need attention" />
+            <HeroStat value={`${documentedPct}%`} label="documented" />
+          </Row>
+        </View>
+      </HeroPanel>
 
       <View style={{ gap: spacing.lg }}>
         <Label>By system</Label>
@@ -153,5 +173,19 @@ export default function HealthScreen() {
         </Small>
       </Card>
     </Screen>
+  );
+}
+
+/** A small figure on the dark hero. Three across, under the ring. */
+function HeroStat({ value, label }: { value: string; label: string }) {
+  return (
+    <View style={{ alignItems: 'center', gap: 1 }}>
+      <Text style={[{ color: '#FFFFFF', fontSize: 19, fontWeight: '700', letterSpacing: -0.5 }, tabular]}>
+        {value}
+      </Text>
+      <Text style={{ color: 'rgba(255,255,255,0.55)', fontSize: 11.5, fontWeight: '600', letterSpacing: 0.3 }}>
+        {label.toUpperCase()}
+      </Text>
+    </View>
   );
 }
