@@ -34,12 +34,17 @@ Transfer Record ← Sell Home ← Improve History ← Record Completed Work
 
 ```bash
 npm install
-npm start          # Expo — press i / a, or scan the QR with Expo Go
+npm run web        # opens in a browser — quickest way to look at it
+npm start          # Expo — press i / a, or scan the QR with Expo Go on your phone
 ```
 
 The app is fully usable at this point. On first launch, **Explore a sample home**
 loads a worked example (a 1998 coastal home with twelve years of history) and every
 screen fills in with real computed numbers.
+
+The browser build is the fastest way to see it and needs no phone or simulator.
+Everything works there except the camera flows, which need a real device — so for
+scanning equipment, capturing invoices, and the problem scanner, use Expo Go.
 
 ### The AI gateway
 

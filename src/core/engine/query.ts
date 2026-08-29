@@ -234,10 +234,44 @@ function unknownComponent(record: HomeRecord, what: string): RecordAnswer {
   };
 }
 
-function answerFilterSize(record: HomeRecord, hinted?: HomeComponent): RecordAnswer {
-  const candidates = (hinted ? [hinted] : record.components).filter((c) =>
-    c.specs.some((s) => /filter/i.test(s.key) || /filter/i.test(s.label)),
+/** A filter spec, and whether it names a size you buy or a part you clean. */
+function filterSpecOf(component: HomeComponent) {
+  return component.specs.find((s) => /filter/i.test(s.key) || /filter/i.test(s.label));
+}
+
+function isPurchasableSize(spec: { key: string; label: string; value: string }): boolean {
+  // A size is either explicitly labelled as one, or reads like dimensions ("20x25x1").
+  return (
+    /size/i.test(spec.key) ||
+    /size/i.test(spec.label) ||
+    /\d+\s*[x×]\s*\d+/i.test(spec.value)
   );
+}
+
+function answerFilterSize(record: HomeRecord, hinted?: HomeComponent): RecordAnswer {
+  const active = record.components.filter((c) => !c.retiredOn);
+
+  // Every filter in the house that you buy by size — not just the one the question
+  // happened to name. Someone asking what size filter to get is standing in a
+  // hardware store, and a house with two air handlers on different sizes needs both.
+  const candidates = active.filter((c) => {
+    const spec = filterSpecOf(c);
+    return spec !== undefined && isPurchasableSize(spec);
+  });
+
+  // Unless they asked about a specific appliance whose filter is cleaned rather than
+  // bought — a dishwasher's cylinder filter has no size and belongs to that question,
+  // not to the list of air filters.
+  if (hinted) {
+    const spec = filterSpecOf(hinted);
+    if (spec && !isPurchasableSize(spec)) {
+      return {
+        answer: `${hinted.name}: ${spec.value}. That one is cleaned rather than replaced by size — there is nothing to buy.`,
+        citations: [citeComponent(hinted)],
+        confidence: spec.provenance === 'documented' ? 'high' : 'medium',
+      };
+    }
+  }
   if (candidates.length === 0) {
     const hvac = record.components.filter((c) => c.category === 'hvac');
     if (hvac.length === 0) {
@@ -254,16 +288,20 @@ function answerFilterSize(record: HomeRecord, hinted?: HomeComponent): RecordAns
     };
   }
   const lines = candidates.map((c) => {
-    const spec = c.specs.find((s) => /filter/i.test(s.key) || /filter/i.test(s.label));
-    const estimated = spec?.provenance === 'estimated' ? ' (estimated — confirm against the old filter)' : '';
+    const spec = filterSpecOf(c);
+    const estimated =
+      spec?.provenance === 'estimated' ? ' (estimated — confirm against the old filter)' : '';
     return `• ${c.name}: ${spec?.value}${estimated}`;
   });
+  const distinctSizes = new Set(candidates.map((c) => filterSpecOf(c)?.value));
+  const note =
+    distinctSizes.size === 1 && candidates.length > 1
+      ? '\n\nBoth take the same size, so one pack covers the house.'
+      : '';
   return {
-    answer: `${lines.join('\n')}\n\nFilters are sized nominally, so a "16x25x1" filter actually measures slightly under that. Buy by the printed size.`,
+    answer: `${lines.join('\n')}${note}\n\nFilters are sized nominally, so a "16x25x1" filter actually measures slightly under that. Buy by the printed size.`,
     citations: candidates.map(citeComponent),
-    confidence: candidates.some((c) =>
-      c.specs.some((s) => /filter/i.test(s.key) && s.provenance === 'documented'),
-    )
+    confidence: candidates.some((c) => filterSpecOf(c)?.provenance === 'documented')
       ? 'high'
       : 'medium',
   };

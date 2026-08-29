@@ -8,10 +8,11 @@ export default function TabsLayout() {
   return (
     <Tabs
       screenOptions={{
-        headerStyle: { backgroundColor: theme.bg },
-        headerTintColor: theme.text,
-        headerShadowVisible: false,
-        headerTitleStyle: { fontSize: 17, fontWeight: '600' },
+        // Every tab screen renders its own heading, with the context that belongs
+        // beside it — the address above "Marsh Point", the task count under
+        // "Maintenance". A navigation header on top of that just prints the word
+        // twice and costs a strip of vertical space on a phone.
+        headerShown: false,
         tabBarActiveTintColor: theme.accent,
         tabBarInactiveTintColor: theme.textFaint,
         tabBarStyle: {

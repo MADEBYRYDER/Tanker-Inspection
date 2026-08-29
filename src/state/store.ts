@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useMemo } from 'react';
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 import { today } from '../core/dates';
@@ -403,7 +404,12 @@ export const useStore = create<StoreState>()(
   ),
 );
 
-/** Assembles the store into the shape every engine expects. */
+/**
+ * Assembles the store into the shape every engine expects.
+ *
+ * Only for non-reactive reads (inside actions, via `get()`). Do not pass this to
+ * `useStore` — see `useHomeRecord` for why.
+ */
 export function selectRecord(state: StoreState): HomeRecord | undefined {
   if (!state.home) return undefined;
   return {
@@ -416,8 +422,32 @@ export function selectRecord(state: StoreState): HomeRecord | undefined {
   };
 }
 
+/**
+ * The home record, as a reference that only changes when the record actually does.
+ *
+ * Each slice is selected separately and reassembled under `useMemo`. Handing
+ * `selectRecord` straight to `useStore` looks equivalent and is not: it builds a
+ * fresh object on every call, and zustand v5 compares snapshots with `Object.is`,
+ * so every render would produce a "new" value, re-render, and loop until React
+ * gives up with "maximum update depth exceeded" — a blank screen.
+ *
+ * The stable reference matters downstream too. Every screen feeds this record into
+ * a `useMemo` that recomputes the schedule, health score, and forecast; a new
+ * identity each render would recompute all three on every keystroke.
+ */
 export function useHomeRecord(): HomeRecord | undefined {
-  return useStore(selectRecord);
+  const home = useStore((s) => s.home);
+  const components = useStore((s) => s.components);
+  const events = useStore((s) => s.events);
+  const documents = useStore((s) => s.documents);
+  const completions = useStore((s) => s.completions);
+  const serviceRequests = useStore((s) => s.serviceRequests);
+
+  return useMemo(
+    () =>
+      home ? { home, components, events, documents, completions, serviceRequests } : undefined,
+    [home, components, events, documents, completions, serviceRequests],
+  );
 }
 
 export function useToday(): ISODate {

@@ -461,6 +461,17 @@ describe('record query — the questions the product promises to answer', () => 
     const answer = answerFromRecord(record, 'What size HVAC filter do I need?', TODAY);
     expect(answer.answer).toContain('20x25x1');
     expect(answer.confidence).toBe('high');
+    // Every air filter in the house, not just the one the phrasing matched — a home
+    // with two air handlers on different sizes needs both sizes. The dishwasher's
+    // cleanable cylinder filter is not something you buy, so it stays out.
+    expect(answer.citations.map((c) => c.componentId).sort()).toEqual(['cmp_furnace', 'cmp_hvac']);
+    expect(answer.answer).not.toMatch(/dishwasher/i);
+  });
+
+  it('answers a cleanable filter as a cleanable filter, not a size', () => {
+    const answer = answerFromRecord(record, 'What size dishwasher filter do I need?', TODAY);
+    expect(answer.answer).toMatch(/Removable cylinder filter/);
+    expect(answer.answer).toMatch(/cleaned rather than replaced/);
   });
 
   it('"When was my roof replaced?"', () => {
