@@ -18,7 +18,7 @@ import { allProviders, usingGeneratedToken } from './dispatch/providers';
 import { ASSISTANT_SYSTEM, DOCUMENT_SYSTEM, PROBLEM_SYSTEM, SCAN_SYSTEM } from './prompts';
 
 /**
- * The Homestead server.
+ * The Dwella server.
  *
  * Two things live here, deliberately separate:
  *
@@ -43,7 +43,7 @@ const MAX_TEXT_CHARS = 4_000;
 const MAX_CONTEXT_CHARS = 120_000;
 
 const app = express();
-app.use(cors({ origin: process.env.HOMESTEAD_ALLOWED_ORIGIN ?? true }));
+app.use(cors({ origin: process.env.DWELLA_ALLOWED_ORIGIN ?? true }));
 app.use(express.json({ limit: '48mb' }));
 
 class BadRequest extends Error {}
@@ -124,7 +124,7 @@ const asyncRoute =
  * ---------------------------------------------------------------------- */
 
 app.get('/health', (_req, res) => {
-  res.json({ ok: true, model: MODEL, service: 'homestead-server' });
+  res.json({ ok: true, model: MODEL, service: 'dwella-server' });
 });
 
 /** Service request intake, the contractor queue, and status back to the homeowner. */
@@ -294,7 +294,7 @@ app.use((error: unknown, req: Request, res: Response, _next: NextFunction) => {
 });
 
 app.listen(PORT, () => {
-  console.log(`Homestead server listening on :${PORT} (model: ${MODEL})`);
+  console.log(`Dwella server listening on :${PORT} (model: ${MODEL})`);
   console.log(`  Dispatch view:  http://localhost:${PORT}/dispatch`);
   if (!process.env.ANTHROPIC_API_KEY && !process.env.ANTHROPIC_AUTH_TOKEN) {
     console.warn(
@@ -309,9 +309,9 @@ app.listen(PORT, () => {
      */
     const [provider] = allProviders();
     console.warn(
-      `\nNo HOMESTEAD_PROVIDERS configured. Generated a development token for "${provider?.name}":\n` +
+      `\nNo DWELLA_PROVIDERS configured. Generated a development token for "${provider?.name}":\n` +
         `  ${provider?.token}\n` +
-        `Sign in at http://localhost:${PORT}/dispatch. Set HOMESTEAD_PROVIDERS to make this stable.\n`,
+        `Sign in at http://localhost:${PORT}/dispatch. Set DWELLA_PROVIDERS to make this stable.\n`,
     );
   }
 });

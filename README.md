@@ -1,4 +1,4 @@
-# Homestead
+# Dwella
 
 A digital operating system for a house — a permanent record of what a home is made
 of, what has been done to it, what it needs next, and what that is likely to cost.
@@ -27,6 +27,68 @@ Transfer Record ← Sell Home ← Improve History ← Record Completed Work
 | **Financial Forecast** | Probability-weighted 1/3/5-year projections and a suggested monthly reserve. |
 | **Contractor Marketplace** | The service request is assembled from the record — make, model, serial, age, warranty, history — so the owner explains nothing twice. |
 | **Transfer on Sale** | A buyer-facing record: the work transfers, the seller's money and notes do not. |
+| **Warranty intelligence** | Coverage about to lapse, ranked by whether the record already shows that item playing up — the one case where a date is worth money. |
+| **Spending insights** | Year-over-year, per-item totals, and a straight answer to what to budget next year. |
+| **Dispatch** | A web queue for the contractor: the packet, the address, the photos, and a status channel back to the homeowner. |
+
+---
+
+## Dwella and Dwella+
+
+**Dwella remembers your home. Dwella+ knows what's coming.**
+
+The free tier is a real product, not a demo. Creating the house, scanning every
+system in it, keeping the history, and getting the reminders that stop a water
+heater rusting through are free forever, for everyone. The property record is worth
+more to the business than eight dollars squeezed out of someone who would otherwise
+never start one.
+
+Dwella+ ($7.99/month, or $69.99/year — 27% less) is the forward-looking half:
+
+| | Dwella | Dwella+ |
+|---|---|---|
+| Home profile, scan, equipment records | ✓ | ✓ |
+| Maintenance schedule, reminders, timeline | ✓ | ✓ |
+| Receipts and documents | 20 stored | Unlimited |
+| Ask Dwella | 5 questions a month* | Unlimited (fair-use ceiling 400/mo) |
+| Home health | Every system's status | …plus the reasoning behind each one |
+| **Home Forecast** | — | 1, 3, and 5 years, with a monthly reserve |
+| **Replacement planning** | — | Per item, probability-weighted |
+| **Warranty intelligence** | — | ✓ |
+| Problem scanner | 2 scans a month | 40 a month |
+| Spending | This year's total | Trends, per-item totals, budget answers |
+| Seasonal plans | Standard checklist | Built from your systems and climate |
+| DIY guides | Standard steps | Your sizes, model, age, and history |
+| Record export | Summary | Complete, with work history and documents |
+| Priority service requests | — | ✓ |
+| Family sharing | — | Coming |
+
+\* Questions answered straight from the record — ages, dates, costs, warranties,
+filter sizes, what's overdue — **never** count against the allowance. They are a
+local lookup against the owner's own data and cost nothing to serve.
+
+A 30-day trial is offered once, at the moment the guided home scan completes —
+the first point at which Dwella knows enough about the house for a forecast to say
+anything true. Offering it during onboarding would be selling a projection of an
+empty record.
+
+### Rules the entitlement code enforces
+
+- **Safety is never paywalled.** `proOnlyReason` and every catalogued hazard render
+  on both plans. What Dwella+ adds to a DIY guide is your filter size and your
+  service history — convenience and money, never safety.
+- **Nothing is deleted or locked when a subscription ends.** The record stays; only
+  the forecasting stops.
+- **Priority service ranks within an urgency band, never across one.** A
+  subscriber's routine job never gets in front of somebody's emergency.
+- **Allowances state the real number**, including for subscribers. A gauge that
+  only appears when you are running out is a pressure tactic.
+- **The paywall never quotes the answer it is selling.** It counts real things in
+  the record — systems, aging items, live warranties — and stops there.
+
+`src/core/entitlements.ts` is the single source of truth for all of it, including
+the published comparison table, and `src/core/entitlements.test.ts` asserts that
+the table and the rules cannot drift apart.
 
 ---
 

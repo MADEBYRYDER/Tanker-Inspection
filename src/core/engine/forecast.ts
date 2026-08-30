@@ -226,6 +226,22 @@ export function computeForecast(record: HomeRecord, options: ForecastOptions = {
 }
 
 /** The single largest projected expense — what the dashboard leads with. */
+/**
+ * Replacements likely enough to be worth telling someone about.
+ *
+ * A 4%-probability line belongs in the arithmetic but not in a sentence that
+ * says "8 systems are likely to need replacing" — that is alarming and untrue.
+ * The paywall and the forecast itself both count through here so they cannot
+ * quote different numbers for the same house.
+ */
+export const LIKELY_REPLACEMENT_THRESHOLD = 0.25;
+
+export function likelyReplacements(forecast: FinancialForecast): ForecastLineItem[] {
+  return forecast.horizons.fiveYear.items
+    .filter((item) => item.kind === 'replacement' && item.probability >= LIKELY_REPLACEMENT_THRESHOLD)
+    .sort((a, b) => (a.likelyYear ?? 9999) - (b.likelyYear ?? 9999));
+}
+
 export function biggestUpcomingExpense(forecast: FinancialForecast): ForecastLineItem | undefined {
   return forecast.horizons.fiveYear.items.find((i) => i.kind === 'replacement');
 }

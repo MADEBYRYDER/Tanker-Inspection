@@ -1,4 +1,4 @@
-# Homestead server
+# Dwella server
 
 Two things live here, deliberately separate:
 
@@ -18,7 +18,7 @@ export ANTHROPIC_API_KEY=sk-ant-...   # or run `ant auth login`
 npm run dev                            # :8787, dispatch at /dispatch
 ```
 
-With no `HOMESTEAD_PROVIDERS` set, the server generates a random access token for
+With no `DWELLA_PROVIDERS` set, the server generates a random access token for
 the launch partner and prints it once at boot. That is a development convenience,
 not a default password: it is different every process, so an instance you forgot to
 shut down is not a door anyone can walk through.
@@ -27,10 +27,10 @@ shut down is not a door anyone can walk through.
 |---|---|
 | `ANTHROPIC_API_KEY` | Credentials. `ANTHROPIC_AUTH_TOKEN` or an `ant auth login` profile also work. |
 | `PORT` | Listen port. Default `8787`. |
-| `HOMESTEAD_MODEL` | Model id. Default `claude-opus-5`. |
-| `HOMESTEAD_ALLOWED_ORIGIN` | CORS origin. Defaults to reflecting the request origin — set this in production. |
-| `HOMESTEAD_PROVIDERS` | `id:Name:token`, comma-separated. Defines who can sign in to a dispatch queue. |
-| `HOMESTEAD_DATA_DIR` | Where dispatch requests and photos are written. Default `./.dispatch-data`. |
+| `DWELLA_MODEL` | Model id. Default `claude-opus-5`. |
+| `DWELLA_ALLOWED_ORIGIN` | CORS origin. Defaults to reflecting the request origin — set this in production. |
+| `DWELLA_PROVIDERS` | `id:Name:token`, comma-separated. Defines who can sign in to a dispatch queue. |
+| `DWELLA_DATA_DIR` | Where dispatch requests and photos are written. Default `./.dispatch-data`. |
 
 ## Endpoints
 
@@ -97,7 +97,7 @@ prevent.
 
 ### Storage
 
-A JSON file plus a photo directory under `HOMESTEAD_DATA_DIR`, held in memory and
+A JSON file plus a photo directory under `DWELLA_DATA_DIR`, held in memory and
 written through on every change (temp file plus rename, so a crash cannot truncate
 the queue; a corrupt file is moved aside rather than deleted). That deploys anywhere
 with a writable disk and needs no database to stand up. It is **not** safe across
@@ -128,18 +128,18 @@ truncated to the last 8.
 limiting, and request logging in front of it. The dispatch routes carry their own
 authentication, described above.
 
-Set `HOMESTEAD_ALLOWED_ORIGIN` rather than leaving CORS reflecting the caller, and
+Set `DWELLA_ALLOWED_ORIGIN` rather than leaving CORS reflecting the caller, and
 terminate TLS in front of the process — the dispatch session cookie is marked
 `Secure` when `NODE_ENV=production`, and it is `SameSite=Strict` because every state
 change in the dispatch view is a plain HTML form and would otherwise be forgeable
 cross-site.
 
-Set `HOMESTEAD_PROVIDERS` explicitly so tokens survive a restart, and rotate a
+Set `DWELLA_PROVIDERS` explicitly so tokens survive a restart, and rotate a
 provider's token by editing that variable and redeploying.
 
 Images sent to `/ai/*` are forwarded to the Anthropic API and are not written to disk.
 Photos attached to a **service request** are different: they are stored under
-`HOMESTEAD_DATA_DIR` so a contractor can look at them, along with the address and
+`DWELLA_DATA_DIR` so a contractor can look at them, along with the address and
 phone number of a real household. Back that directory up, encrypt the volume, and
 decide a retention period before you take a second customer.
 

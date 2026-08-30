@@ -8,6 +8,7 @@ import { formatMoneyExact } from '../../src/core/money';
 import type { ServiceRequest } from '../../src/core/types';
 import type { DispatchStatus } from '../../src/core/types';
 import { fetchStatus, isDispatchConfigured, submitToProvider } from '../../src/dispatch/client';
+import { usePlan } from '../../src/state/plan';
 import { useHomeRecord, useStore } from '../../src/state/store';
 import { PhotoTray, canSubmit } from '../../src/ui/PhotoTray';
 import { toPayload, type CapturedImage } from '../../src/ui/capture';
@@ -81,6 +82,7 @@ function ComposeRequest({
   const recordDelivery = useStore((s) => s.recordDelivery);
   const updateHome = useStore((s) => s.updateHome);
   const addMedia = useStore((s) => s.addMedia);
+  const { can } = usePlan();
 
   const [componentId, setComponentId] = useState<string | undefined>(params.componentId || undefined);
   const [title, setTitle] = useState(params.title ?? '');
@@ -149,6 +151,7 @@ function ComposeRequest({
           request: { ...request, status: 'submitted' },
           providerId,
           photos: images.map(toPayload),
+          priority: can('priority_service'),
         });
         recordDelivery(request.id, {
           remoteId: response.id,
@@ -232,6 +235,14 @@ function ComposeRequest({
 
       <Card>
         <SectionTitle title="Send to" />
+        {can('priority_service') ? (
+          <Row gap={spacing.xs}>
+            <Badge label="priority" fg={theme.blue} bg={theme.blueSoft} />
+            <Tertiary style={{ flex: 1 }}>
+              Dwella+ requests are flagged for the company to see first.
+            </Tertiary>
+          </Row>
+        ) : null}
         {providers.length === 0 ? (
           <Small>No provider covers this trade in your area yet.</Small>
         ) : (

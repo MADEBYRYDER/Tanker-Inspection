@@ -4,6 +4,7 @@ import { Alert, Share, View } from 'react-native';
 import { today } from '../../src/core/dates';
 import { buildHomeRecordReport, renderReportText } from '../../src/core/engine/transfer';
 import { formatMoney } from '../../src/core/money';
+import { usePlan } from '../../src/state/plan';
 import { useHomeRecord } from '../../src/state/store';
 import {
   Badge,
@@ -23,6 +24,7 @@ import {
   SectionTitle,
   Title,
 } from '../../src/ui/components';
+import { PlusGate } from '../../src/ui/plus';
 import { spacing, useTheme } from '../../src/ui/theme';
 
 /**
@@ -41,6 +43,7 @@ export default function HomeRecordScreen() {
   const theme = useTheme();
   const router = useRouter();
   const record = useHomeRecord();
+  const { can } = usePlan();
   const [forTransfer, setForTransfer] = useState(false);
   const [includeCosts, setIncludeCosts] = useState(false);
 
@@ -60,6 +63,20 @@ export default function HomeRecordScreen() {
     return <Screen><Small>Set up your home first.</Small></Screen>;
   }
 
+  /*
+   * Which sections the free plan sees. Chosen by what a section is *for*: the
+   * property and its equipment are the record itself, while the year-by-year
+   * history and the document index are the depth that makes it a transferable
+   * dossier.
+   */
+  const PLUS_ONLY_SECTIONS = ['Documented work', 'Capital improvements', 'Attached documents'];
+  const visibleSections = can('export_complete')
+    ? report.sections
+    : report.sections.filter((s) => !PLUS_ONLY_SECTIONS.includes(s.heading));
+  const hiddenSections = can('export_complete')
+    ? []
+    : report.sections.filter((s) => PLUS_ONLY_SECTIONS.includes(s.heading));
+
   if (record.components.length === 0 && record.events.length === 0) {
     return (
       <Screen>
@@ -76,7 +93,13 @@ export default function HomeRecordScreen() {
 
   const share = async () => {
     try {
-      await Share.share({ message: renderReportText(report), title: report.title });
+      // Share exactly what is on screen. Rendering the full report here while the
+      // screen shows a summary would make the difference between the tiers a
+      // cosmetic one, and a paywall that is only cosmetic is a lie either way.
+      await Share.share({
+        message: renderReportText({ ...report, sections: visibleSections }),
+        title: report.title,
+      });
     } catch {
       Alert.alert('Could not share', 'Sharing is not available on this device.');
     }
@@ -123,7 +146,14 @@ export default function HomeRecordScreen() {
         </Card>
       ) : null}
 
-      {report.sections.map((section) => (
+      {/*
+        The summary is free: it is the owner's own record and they can always
+        read it, share it, and hand it to a buyer. Dwella+ adds the sections a
+        summary leaves out — the per-item service history and the document
+        index — which is what turns a printout into a document an inspector or
+        an agent can actually work from.
+      */}
+      {visibleSections.map((section) => (
         <Card key={section.heading}>
           <Heading>{section.heading}</Heading>
           <Divider />
@@ -154,7 +184,22 @@ export default function HomeRecordScreen() {
         </Card>
       ))}
 
-      <Button label="Share this record" icon="share-outline" onPress={() => void share()} full />
+      {!can('export_complete') && hiddenSections.length > 0 ? (
+        <PlusGate
+          icon="document-text-outline"
+          title="The complete record"
+          promise={`Your summary covers the property and its equipment. Dwella+ adds ${hiddenSections
+            .map((s) => s.heading.toLowerCase())
+            .join(' and ')} — the per-item detail a buyer, an agent, or an inspector actually asks for.`}
+        />
+      ) : null}
+
+      <Button
+        label={can('export_complete') ? 'Share the complete record' : 'Share this summary'}
+        icon="share-outline"
+        onPress={() => void share()}
+        full
+      />
 
       <Card>
         <Heading>When the house sells</Heading>

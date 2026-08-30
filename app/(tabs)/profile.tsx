@@ -8,8 +8,10 @@ import { computeForecast } from '../../src/core/engine/forecast';
 import { summarizeSpend } from '../../src/core/engine/timeline';
 import { formatMoney } from '../../src/core/money';
 import { buildSampleRecord } from '../../src/data/sampleHome';
+import { usePlan } from '../../src/state/plan';
 import { useHomeRecord, useStore } from '../../src/state/store';
 import {
+  Badge,
   Body,
   Button,
   Card,
@@ -23,6 +25,7 @@ import {
   Tertiary,
   Title,
 } from '../../src/ui/components';
+import { PlusMark } from '../../src/ui/plus';
 import { radius, spacing, useTheme } from '../../src/ui/theme';
 
 /**
@@ -36,6 +39,7 @@ export default function Profile() {
   const theme = useTheme();
   const router = useRouter();
   const record = useHomeRecord();
+  const { can, isPlus, canStartTrial, trialDaysLeft } = usePlan();
   const reset = useStore((s) => s.resetEverything);
   const loadRecord = useStore((s) => s.loadRecord);
   const [gateway, setGateway] = useState<{ ok: boolean; model?: string; detail?: string }>();
@@ -115,13 +119,47 @@ export default function Profile() {
         </Row>
       </Card>
 
+      {/* The plan, stated once and where someone would look for it. */}
+      <Card
+        onPress={() => router.push('/plus')}
+        tone={isPlus ? undefined : theme.surfaceSunken}
+        raised={isPlus ? 2 : 1}
+      >
+        <Row gap={spacing.md} justify="space-between">
+          <View style={{ flex: 1, gap: 3 }}>
+            <Row gap={spacing.sm}>
+              <PlusMark />
+              {trialDaysLeft !== undefined ? (
+                <Badge
+                  label={`trial · ${trialDaysLeft}d left`}
+                  fg={theme.blue}
+                  bg={theme.blueSoft}
+                />
+              ) : null}
+            </Row>
+            <Small>
+              {isPlus
+                ? 'Forecasting, warranty alerts, the full health breakdown, and unlimited questions are on.'
+                : canStartTrial
+                  ? 'Know what this house will need, when, and what to set aside for it. Free for 30 days.'
+                  : 'Forecasting, warranty alerts, and the full health breakdown.'}
+            </Small>
+          </View>
+          <Ionicons name="chevron-forward" size={16} color={theme.textTertiary} />
+        </Row>
+      </Card>
+
       <View style={{ gap: spacing.md }}>
         <Label>Your home</Label>
         <Card padding={spacing.lg}>
           <ListRow
             icon="wallet-outline"
             title="Cost forecast"
-            subtitle={`${formatMoney(figures.forecast.suggestedMonthlyReserveCents)}/month suggested reserve`}
+            subtitle={
+              can('forecast')
+                ? `${formatMoney(figures.forecast.suggestedMonthlyReserveCents)}/month suggested reserve`
+                : 'What you have spent, and what is coming'
+            }
             onPress={() => router.push('/costs')}
           />
           <Divider inset={48} />

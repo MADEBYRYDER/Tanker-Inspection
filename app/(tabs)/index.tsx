@@ -6,9 +6,11 @@ import { formatDate, relativeDayLabel, today } from '../../src/core/dates';
 import { resolveComponentAge } from '../../src/core/engine/age';
 import { computeForecast } from '../../src/core/engine/forecast';
 import { computeHomeHealth } from '../../src/core/engine/health';
+import { coverageSummary, warrantyAlerts } from '../../src/core/engine/warrantyIntelligence';
 import { generateTasks } from '../../src/core/engine/schedule';
 import { formatApprox, formatMoney } from '../../src/core/money';
 import type { ComponentCategory, HomeComponent, ScheduledTask } from '../../src/core/types';
+import { usePlan } from '../../src/state/plan';
 import { useHomeRecord } from '../../src/state/store';
 import {
   AskRow,
@@ -33,6 +35,7 @@ import {
   Title,
   Touchable,
 } from '../../src/ui/components';
+import { PlusGate } from '../../src/ui/plus';
 import {
   CATEGORY_ICON,
   CATEGORY_LABEL,
@@ -64,13 +67,26 @@ export default function Dashboard() {
   const theme = useTheme();
   const router = useRouter();
   const record = useHomeRecord();
+  const { can } = usePlan();
   const asOf = today();
 
   const derived = useMemo(() => {
     if (!record) return undefined;
     const tasks = generateTasks(record, { asOf });
     const health = computeHomeHealth(record, { asOf, tasks });
-    return { tasks, health, forecast: computeForecast(record, { asOf }) };
+    return {
+      tasks,
+      health,
+      forecast: computeForecast(record, { asOf }),
+      /*
+       * Warranty figures are computed for both plans, not just for subscribers.
+       * The free gate needs the count to say what it is actually missing, and
+       * deriving it in a second place is how the gate and the feature drift
+       * into disagreeing about the same house.
+       */
+      warrantyItems: warrantyAlerts(record, asOf).filter((a) => a.kind !== 'recently_lapsed'),
+      coveredCount: coverageSummary(record, asOf).length,
+    };
   }, [record, asOf]);
 
   if (!record || !derived) {
@@ -86,7 +102,7 @@ export default function Dashboard() {
     );
   }
 
-  const { health, forecast, tasks } = derived;
+  const { health, forecast, tasks, warrantyItems, coveredCount } = derived;
   const hasEquipment = record.components.length > 0;
 
   /*
@@ -262,6 +278,54 @@ export default function Dashboard() {
                   ))}
                 </Card>
               </View>
+            </Enter>
+          ) : null}
+
+          {/*
+            ---- Warranty intelligence ------------------------------------
+            Placed above the figures because it is the only thing on this
+            screen with a deadline attached to it. A warranty that runs out
+            while the record already shows the item playing up is money left on
+            the table, and it is invisible unless something says so here.
+          */}
+          {can('warranty_intelligence') ? (
+            warrantyItems.length > 0 ? (
+              <Enter index={2}>
+                <View style={{ gap: spacing.md }}>
+                  <SectionTitle title="Warranties" />
+                  {warrantyItems.slice(0, 2).map((alert) => (
+                    <Card
+                      key={alert.componentId}
+                      onPress={() => router.push(`/component/${alert.componentId}`)}
+                      style={{
+                        borderLeftWidth: 3,
+                        borderLeftColor: alert.kind === 'act_now' ? theme.amber : theme.blue,
+                      }}
+                    >
+                      <Row gap={spacing.md} align="flex-start">
+                        <IconTile
+                          icon="shield-checkmark-outline"
+                          status={alert.kind === 'act_now' ? 'attention' : 'info'}
+                          size={40}
+                        />
+                        <View style={{ flex: 1, gap: 3 }}>
+                          <BodyStrong>{alert.title}</BodyStrong>
+                          <Tertiary>{alert.detail}</Tertiary>
+                          <Small style={{ color: theme.textSecondary }}>{alert.recommendation}</Small>
+                        </View>
+                      </Row>
+                    </Card>
+                  ))}
+                </View>
+              </Enter>
+            ) : null
+          ) : coveredCount > 0 ? (
+            <Enter index={2}>
+              <PlusGate
+                icon="shield-checkmark-outline"
+                title="Warranty intelligence"
+                promise={`You have ${coveredCount} ${coveredCount === 1 ? 'warranty' : 'warranties'} still running on this home. Dwella+ watches them and tells you before one ends — especially when your own record already shows that item playing up.`}
+              />
             </Enter>
           ) : null}
 

@@ -17,6 +17,7 @@ import { answerFromRecord, buildGroundingContext } from '../src/core/engine/quer
 import { generateTasks } from '../src/core/engine/schedule';
 import { formatMoney } from '../src/core/money';
 import type { ScheduledTask } from '../src/core/types';
+import { usePlan } from '../src/state/plan';
 import { useHomeRecord, useStore, type AssistantMessage } from '../src/state/store';
 import {
   Body,
@@ -29,6 +30,7 @@ import {
   Small,
   Tertiary,
 } from '../src/ui/components';
+import { AllowanceRow, AllowanceSpent } from '../src/ui/plus';
 import { radius, spacing, type, useTheme } from '../src/ui/theme';
 
 const STARTERS = [
@@ -57,6 +59,8 @@ export default function Assistant() {
   const messages = useStore((s) => s.assistantMessages);
   const append = useStore((s) => s.appendAssistantMessage);
   const clear = useStore((s) => s.clearAssistant);
+  const countUsage = useStore((s) => s.countUsage);
+  const { usage } = usePlan();
 
   const [input, setInput] = useState('');
   const [busy, setBusy] = useState(false);
@@ -96,11 +100,34 @@ export default function Assistant() {
           return;
         }
 
+        /*
+         * The allowance is checked here and not a line earlier, on purpose.
+         * Anything `answerFromRecord` could handle has already returned above:
+         * those are local lookups against the owner's own record, they cost
+         * nothing to serve, and charging an allowance for reading back a date
+         * the owner typed in themselves would be indefensible. Only questions
+         * that actually reach the model are metered.
+         */
+        if (!usage('assistant').allowed) {
+          append({
+            role: 'assistant',
+            fromRecord: true,
+            atAllowanceLimit: true,
+            content:
+              "That's every Ask Dwella question on the free plan this month. Your allowance resets on the 1st.\n\nI can still answer anything that reads straight off your record — ages, dates, costs, warranties, filter sizes, what's overdue, who did what work. Try asking one of those, or open Dwella+ for unlimited questions.",
+          });
+          return;
+        }
+
         const reply = await askAssistant({
           question: trimmed,
           recordContext: buildGroundingContext(record, { asOf }),
           history: messages.slice(-6).map((m) => ({ role: m.role, content: m.content })),
         });
+
+        // Counted only once the model has actually answered, so a failed request
+        // never costs someone a question.
+        countUsage('assistant');
 
         append({
           role: 'assistant',
@@ -126,7 +153,7 @@ export default function Assistant() {
         requestAnimationFrame(() => scrollRef.current?.scrollToEnd({ animated: true }));
       }
     },
-    [record, busy, append, messages],
+    [record, busy, append, messages, usage, countUsage],
   );
 
   // A question handed in from an asset page ("Tell me about my Water heater").
@@ -192,12 +219,21 @@ export default function Assistant() {
           ) : null}
 
           {messages.map((message) => (
-            <Bubble
-              key={message.id}
-              message={message}
-              onFollowUp={(q) => void send(q)}
-              onOpenComponent={(id) => router.push(`/component/${id}`)}
-            />
+            <View key={message.id} style={{ gap: spacing.md }}>
+              <Bubble
+                message={message}
+                onFollowUp={(q) => void send(q)}
+                onOpenComponent={(id) => router.push(`/component/${id}`)}
+              />
+              {/* The upgrade card appears once, attached to the reply that hit
+                  the limit — not as a banner that follows the conversation. */}
+              {message.atAllowanceLimit ? (
+                <AllowanceSpent
+                  what="last Ask Dwella question"
+                  alternative="Anything that reads straight off your record still works — ages, dates, costs, warranties, filter sizes, what's overdue, and who did what."
+                />
+              ) : null}
+            </View>
           ))}
 
           {/* An answer about weekend work is more useful as tappable tasks than prose. */}
@@ -215,6 +251,14 @@ export default function Assistant() {
               <Chip label="Clear conversation" icon="trash-outline" onPress={clear} />
             </Row>
           ) : null}
+
+          {/* Stated up front rather than only on the way out, and only for
+              questions that reach the model — record lookups are always free. */}
+          <AllowanceRow
+            verdict={usage('assistant')}
+            noun={{ one: 'question', many: 'questions' }}
+            hint="Questions answered straight from your record never count."
+          />
         </ScrollView>
 
         <View

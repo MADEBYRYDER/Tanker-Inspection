@@ -10,7 +10,7 @@ import type { z } from 'zod';
  * fail loudly here rather than arrive half-parsed at the review screen.
  */
 
-export const MODEL = process.env.HOMESTEAD_MODEL ?? 'claude-opus-5';
+export const MODEL = process.env.DWELLA_MODEL ?? 'claude-opus-5';
 
 // Credentials resolve from the environment: ANTHROPIC_API_KEY, ANTHROPIC_AUTH_TOKEN,
 // or an `ant auth login` profile.

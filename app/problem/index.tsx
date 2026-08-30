@@ -6,7 +6,8 @@ import { GatewayNotConfiguredError, isGatewayConfigured, triageProblem } from '.
 import type { ProblemTriage } from '../../src/ai/schemas';
 import { today } from '../../src/core/dates';
 import { buildGroundingContext } from '../../src/core/engine/query';
-import { useHomeRecord } from '../../src/state/store';
+import { usePlan } from '../../src/state/plan';
+import { useHomeRecord, useStore } from '../../src/state/store';
 import { PhotoTray, canSubmit } from '../../src/ui/PhotoTray';
 import { toPayload, type CapturedImage } from '../../src/ui/capture';
 import {
@@ -30,6 +31,7 @@ import {
   Title,
   Touchable,
 } from '../../src/ui/components';
+import { AllowanceRow, AllowanceSpent } from '../../src/ui/plus';
 import { radius, spacing, toneFor, type, useTheme, type StatusKey } from '../../src/ui/theme';
 
 const URGENCY: Record<
@@ -74,6 +76,8 @@ export default function ProblemScanner() {
   const theme = useTheme();
   const router = useRouter();
   const record = useHomeRecord();
+  const { usage } = usePlan();
+  const countUsage = useStore((s) => s.countUsage);
   const params = useLocalSearchParams<{ componentId?: string }>();
 
   const [images, setImages] = useState<CapturedImage[]>([]);
@@ -83,8 +87,13 @@ export default function ProblemScanner() {
   const [result, setResult] = useState<ProblemTriage | undefined>();
   const [error, setError] = useState<string | undefined>();
 
+  const scans = usage('problem_scan');
+
   const submit = async () => {
     if (!record || description.trim().length < 8) return;
+    // Checked here as well as on the button, so a stale screen left open
+    // overnight cannot spend an allowance the month has already reset away from.
+    if (!scans.allowed) return;
     setBusy(true);
     setError(undefined);
     try {
@@ -96,6 +105,9 @@ export default function ProblemScanner() {
           : description.trim(),
         recordContext: buildGroundingContext(record, { asOf: today() }),
       });
+      // Counted on success only: a gateway timeout should not cost someone one
+      // of two scans a month.
+      countUsage('problem_scan');
       setResult(triage);
     } catch (err) {
       setError(
@@ -368,6 +380,15 @@ export default function ProblemScanner() {
         </Card>
       ) : null}
 
+      {scans.allowed ? (
+        <AllowanceRow verdict={scans} noun={{ one: 'scan', many: 'scans' }} />
+      ) : (
+        <AllowanceSpent
+          what="last problem scan"
+          alternative="You can still describe the problem and send it straight to a contractor with your equipment details attached — that path is always free."
+        />
+      )}
+
       {busy ? (
         <Loading label="Checking this against your home's record…" />
       ) : (
@@ -380,10 +401,26 @@ export default function ProblemScanner() {
           disabled={
             description.trim().length < 8 ||
             !isGatewayConfigured() ||
+            !scans.allowed ||
             (images.length > 0 && !canSubmit(images))
           }
         />
       )}
+
+      {!scans.allowed ? (
+        <Button
+          label="Request service instead"
+          icon="construct-outline"
+          variant="secondary"
+          size="lg"
+          full
+          onPress={() =>
+            router.push(
+              `/service/new?problem=${encodeURIComponent(description.trim())}${componentId ? `&componentId=${componentId}` : ''}`,
+            )
+          }
+        />
+      ) : null}
 
       <Tertiary>
         This is triage, not a diagnosis. It helps you decide how worried to be and what to do in the

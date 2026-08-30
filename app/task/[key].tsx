@@ -5,6 +5,8 @@ import { View } from 'react-native';
 import { formatDate, relativeDayLabel, today } from '../../src/core/dates';
 import { generateTasks } from '../../src/core/engine/schedule';
 import { formatMoney } from '../../src/core/money';
+import { personalDiyNotes, personalNotesSummary } from '../../src/core/engine/diyPersonal';
+import { usePlan } from '../../src/state/plan';
 import { useHomeRecord, useStore } from '../../src/state/store';
 import {
   Body,
@@ -27,6 +29,7 @@ import {
   Tertiary,
   Title,
 } from '../../src/ui/components';
+import { PlusRowLock } from '../../src/ui/plus';
 import { radius, spacing, urgencyStatus, useTheme } from '../../src/ui/theme';
 
 type Path = 'diy' | 'hire';
@@ -45,12 +48,27 @@ export default function TaskDetail() {
   const { key } = useLocalSearchParams<{ key: string }>();
   const record = useHomeRecord();
   const completeTask = useStore((s) => s.completeTask);
+  const { can } = usePlan();
   const asOf = today();
 
   const task = useMemo(() => {
     if (!record || !key) return undefined;
     return generateTasks(record, { asOf }).find((t) => t.key === decodeURIComponent(key));
   }, [record, key, asOf]);
+
+  /*
+   * Computed for both plans: the free lock has to name what it is withholding,
+   * and deriving that from the same list the paid view renders is the only way
+   * the two cannot disagree.
+   */
+  const personalNotes = useMemo(() => {
+    if (!record || !task) return [];
+    const component = task.componentId
+      ? record.components.find((c) => c.id === task.componentId)
+      : undefined;
+    return personalDiyNotes({ record, task, component, asOf });
+  }, [record, task, asOf]);
+  const personalNotesText = personalNotesSummary(personalNotes);
 
   const [path, setPath] = useState<Path>('diy');
   const [logging, setLogging] = useState(false);
@@ -166,6 +184,41 @@ export default function TaskDetail() {
               <Divider />
               <Label>Steps</Label>
               <Steps steps={task.diy.steps} />
+
+              {/* Personalised to this unit. Safety guidance is never in here —
+                  proOnlyReason and every hazard warning show on both plans. */}
+              {can('diy_personalized') ? (
+                personalNotes.length > 0 ? (
+                  <>
+                    <Divider />
+                    <Label>For your {task.componentName ?? 'equipment'}</Label>
+                    {personalNotes.map((note, index) => (
+                      <Row key={index} gap={spacing.sm} align="flex-start">
+                        <Ionicons
+                          name={
+                            note.kind === 'warranty'
+                              ? 'shield-checkmark-outline'
+                              : note.kind === 'history'
+                                ? 'time-outline'
+                                : note.kind === 'age'
+                                  ? 'hourglass-outline'
+                                  : 'pricetag-outline'
+                          }
+                          size={15}
+                          color={note.basis === 'fact' ? theme.sage : theme.textTertiary}
+                          style={{ marginTop: 3 }}
+                        />
+                        <Body style={{ flex: 1 }}>{note.text}</Body>
+                      </Row>
+                    ))}
+                  </>
+                ) : null
+              ) : personalNotesText ? (
+                <>
+                  <Divider />
+                  <PlusRowLock label={`Dwella+ adds ${personalNotesText}.`} />
+                </>
+              ) : null}
             </Card>
           )
         ) : (

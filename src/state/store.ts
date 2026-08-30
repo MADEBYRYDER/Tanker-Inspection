@@ -3,6 +3,14 @@ import { useMemo } from 'react';
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 import { today } from '../core/dates';
+import {
+  NO_SUBSCRIPTION,
+  startTrial,
+  trialAvailable,
+  type MeteredKey,
+  type Subscription,
+  type SubscriptionSource,
+} from '../core/entitlements';
 import { buildServiceRequestPacket } from '../core/engine/serviceRequest';
 import type {
   DispatchStatus,
@@ -43,6 +51,8 @@ export interface AssistantMessage {
   fromRecord?: boolean;
   citations?: { label: string; detail: string; componentId?: string }[];
   isGeneralKnowledge?: boolean;
+  /** Set when the reply is the free plan's monthly allowance running out. */
+  atAllowanceLimit?: boolean;
   followUps?: string[];
   error?: boolean;
 }
@@ -127,6 +137,48 @@ interface StoreState {
   /* Assistant */
   appendAssistantMessage: (message: Omit<AssistantMessage, 'id' | 'createdAt'>) => AssistantMessage;
   clearAssistant: () => void;
+
+  /* Plan */
+  subscription: Subscription;
+  usage: UsageState;
+  beginTrial: () => void;
+  /** Records a real store purchase. Called by the billing layer, not by a screen. */
+  activateSubscription: (params: {
+    source: Extract<SubscriptionSource, 'app_store' | 'play_store' | 'promo'>;
+    renewsOn?: ISODate;
+    billingReference?: string;
+  }) => void;
+  cancelSubscription: () => void;
+  /** Increments a metered counter, rolling the period first if the month has turned. */
+  countUsage: (key: MeteredKey) => void;
+}
+
+/**
+ * Metered usage, with the period stamped on it.
+ *
+ * The reset is computed from the stored month rather than scheduled, because a
+ * phone that was off on the first of the month would otherwise never roll over,
+ * and a homeowner would open the app to find their questions still spent.
+ */
+export interface UsageState {
+  /** `YYYY-MM` the monthly counters belong to. */
+  period: string;
+  monthly: Record<MeteredKey, number>;
+}
+
+function currentPeriod(asOf: ISODate): string {
+  return asOf.slice(0, 7);
+}
+
+const EMPTY_USAGE = (asOf: ISODate): UsageState => ({
+  period: currentPeriod(asOf),
+  monthly: { documents: 0, assistant: 0, problem_scan: 0 },
+});
+
+/** Rolls the monthly counters forward when the calendar month has changed. */
+function rolled(usage: UsageState, asOf: ISODate): UsageState {
+  const period = currentPeriod(asOf);
+  return usage.period === period ? usage : EMPTY_USAGE(asOf);
 }
 
 const EMPTY = {
@@ -438,9 +490,49 @@ export const useStore = create<StoreState>()(
       },
 
       clearAssistant: () => set({ assistantMessages: [] }),
+
+      subscription: NO_SUBSCRIPTION,
+      usage: EMPTY_USAGE(today()),
+
+      beginTrial: () =>
+        set((state) =>
+          // One trial per household, ever. Checked here rather than only at the
+          // button, so no screen can hand out a second by calling this twice.
+          trialAvailable(state.subscription) ? { subscription: startTrial(today()) } : state,
+        ),
+
+      activateSubscription: ({ source, renewsOn, billingReference }) =>
+        set((state) => ({
+          subscription: {
+            ...state.subscription,
+            source,
+            renewsOn,
+            billingReference,
+          },
+        })),
+
+      /*
+       * Drops back to whatever the trial history was, so cancelling a paid plan
+       * does not hand out a fresh trial. The store remains the authority on
+       * whether the subscription is live; this only reflects that locally.
+       */
+      cancelSubscription: () =>
+        set((state) => ({
+          subscription: {
+            source: 'none',
+            trialStartedOn: state.subscription.trialStartedOn,
+            trialEndsOn: state.subscription.trialEndsOn,
+          },
+        })),
+
+      countUsage: (key) =>
+        set((state) => {
+          const usage = rolled(state.usage, today());
+          return { usage: { ...usage, monthly: { ...usage.monthly, [key]: usage.monthly[key] + 1 } } };
+        }),
     }),
     {
-      name: 'homestead-record-v1',
+      name: 'dwella-record-v1',
       storage: createJSONStorage(() => AsyncStorage),
       // Conversation scrollback is not part of the home's permanent record.
       partialize: (state) => ({
@@ -451,6 +543,8 @@ export const useStore = create<StoreState>()(
         completions: state.completions,
         serviceRequests: state.serviceRequests,
         media: state.media,
+        subscription: state.subscription,
+        usage: state.usage,
       }),
       onRehydrateStorage: () => (state) => {
         if (state) state.hydrated = true;

@@ -388,8 +388,17 @@ const events: TimelineEvent[] = [
   }),
 ];
 
+/**
+ * A fresh, independent copy of the sample home on every call.
+ *
+ * The components and events above are module-level literals. Handing those
+ * references out means every caller shares one mutable object graph: a screen
+ * that edits a component, or a second test that retires one, silently changes
+ * the sample for everything else in the process. Deep-cloning on the way out
+ * makes "load the sample home" mean the same thing every time it is called.
+ */
 export function buildSampleRecord(): { record: HomeRecord; media: MediaRef[] } {
-  return {
+  return clone({
     record: {
       home: {
         id: HOME_ID,
@@ -500,5 +509,14 @@ export function buildSampleRecord(): { record: HomeRecord; media: MediaRef[] } {
       serviceRequests: [],
     },
     media: [],
-  };
+  });
+}
+
+/**
+ * Structured deep copy. The sample record is plain JSON — no dates, no maps, no
+ * functions — so this is exact, and it keeps the clone honest as the fixture
+ * grows rather than needing a hand-written copier kept in sync with it.
+ */
+function clone<T>(value: T): T {
+  return JSON.parse(JSON.stringify(value)) as T;
 }

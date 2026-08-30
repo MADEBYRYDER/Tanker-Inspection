@@ -97,8 +97,10 @@ export function submitToProvider(params: {
   request: ServiceRequest;
   providerId: string;
   photos: ImagePayload[];
+  /** Dwella+ household — surfaces the job earlier in the contractor's queue. */
+  priority?: boolean;
 }): Promise<SubmitResponse> {
-  const { request, providerId, photos } = params;
+  const { request, providerId, photos, priority = false } = params;
   return call(
     '/dispatch/requests',
     {
@@ -110,6 +112,7 @@ export function submitToProvider(params: {
         title: request.title,
         urgency: request.urgency,
         packet: request.packet,
+        priority,
         photos,
       }),
     },

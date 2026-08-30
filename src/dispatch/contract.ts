@@ -99,6 +99,14 @@ export const submitRequestSchema = z.object({
   title: z.string().min(1).max(200),
   urgency: z.enum(['emergency', 'soon', 'routine']),
   packet: packetSchema,
+  /*
+   * Set for a Dwella+ household. It orders the contractor's queue and nothing
+   * else — it never changes what the packet contains, and an emergency from a
+   * free household still outranks a routine job from a subscriber. Selling a
+   * place in front of someone whose water heater is actively flooding a
+   * basement is not a subscription feature, it is a liability.
+   */
+  priority: z.boolean().default(false),
   photos: z
     .array(
       z.object({

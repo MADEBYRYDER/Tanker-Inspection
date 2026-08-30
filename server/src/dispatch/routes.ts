@@ -114,6 +114,7 @@ export function dispatchRouter(): Router {
         providerId: provider.id,
         title: body.title,
         urgency: body.urgency,
+        priority: body.priority,
         packet: body.packet,
         photoIds,
       });
@@ -162,6 +163,7 @@ export function dispatchRouter(): Router {
           id: r.id,
           title: r.title,
           urgency: r.urgency,
+          priority: r.priority,
           status: r.status,
           receivedAt: r.receivedAt,
           address: r.packet.contact.address,
@@ -293,7 +295,7 @@ export function dispatchRouter(): Router {
      */
     res.setHeader(
       'Set-Cookie',
-      `homestead_dispatch=${encodeURIComponent(token)}; Path=/; HttpOnly; SameSite=Strict; Max-Age=2592000${
+      `dwella_dispatch=${encodeURIComponent(token)}; Path=/; HttpOnly; SameSite=Strict; Max-Age=2592000${
         process.env.NODE_ENV === 'production' ? '; Secure' : ''
       }`,
     );
@@ -301,7 +303,7 @@ export function dispatchRouter(): Router {
   });
 
   router.post('/dispatch/logout', (_req, res) => {
-    res.setHeader('Set-Cookie', 'homestead_dispatch=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0');
+    res.setHeader('Set-Cookie', 'dwella_dispatch=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0');
     res.redirect('/dispatch');
   });
 

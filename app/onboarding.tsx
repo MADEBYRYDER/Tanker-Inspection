@@ -71,7 +71,7 @@ export default function Onboarding() {
   return (
     <Screen>
       <View style={{ gap: spacing.sm, marginTop: spacing.xl }}>
-        <Display>Homestead</Display>
+        <Display>Dwella</Display>
         <Body>
           A permanent record for your house — what it is made of, what has been done to it, what it
           needs next, and what that is likely to cost.

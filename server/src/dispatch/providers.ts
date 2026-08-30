@@ -11,7 +11,7 @@ import { tokenMatches } from './store';
  * different permissions, this becomes real per-user accounts, and the seam for
  * that is `authenticate` returning a richer principal.
  *
- * Format:  HOMESTEAD_PROVIDERS="lowcountry:Lowcountry Home Maintenance:<token>"
+ * Format:  DWELLA_PROVIDERS="lowcountry:Lowcountry Home Maintenance:<token>"
  * Multiple providers are separated by commas.
  */
 
@@ -37,7 +37,7 @@ function parseProviders(raw: string | undefined): ProviderAccount[] {
   return accounts;
 }
 
-let accounts = parseProviders(process.env.HOMESTEAD_PROVIDERS);
+let accounts = parseProviders(process.env.DWELLA_PROVIDERS);
 
 /*
  * With nothing configured, generate a token for the launch partner and print it
@@ -88,7 +88,7 @@ export function tokenFromRequest(headers: {
   if (!cookie) return undefined;
   for (const part of cookie.split(';')) {
     const [name, ...rest] = part.trim().split('=');
-    if (name === 'homestead_dispatch') return decodeURIComponent(rest.join('='));
+    if (name === 'dwella_dispatch') return decodeURIComponent(rest.join('='));
   }
   return undefined;
 }

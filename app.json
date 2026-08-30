@@ -1,8 +1,8 @@
 {
   "expo": {
-    "name": "Homestead",
-    "slug": "homestead",
-    "scheme": "homestead",
+    "name": "Dwella",
+    "slug": "dwella",
+    "scheme": "dwella",
     "version": "0.1.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -15,14 +15,14 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.homestead.app",
+      "bundleIdentifier": "com.dwella.app",
       "infoPlist": {
-        "NSCameraUsageDescription": "Homestead uses the camera to scan equipment nameplates, document conditions, and capture invoices for your home record.",
-        "NSPhotoLibraryUsageDescription": "Homestead uses your photo library to attach existing photos and documents to your home record."
+        "NSCameraUsageDescription": "Dwella uses the camera to scan equipment nameplates, document conditions, and capture invoices for your home record.",
+        "NSPhotoLibraryUsageDescription": "Dwella uses your photo library to attach existing photos and documents to your home record."
       }
     },
     "android": {
-      "package": "com.homestead.app",
+      "package": "com.dwella.app",
       "adaptiveIcon": {
         "backgroundColor": "#0F1B18",
         "foregroundImage": "./assets/android-icon-foreground.png",
@@ -44,13 +44,13 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "Homestead uses the camera to scan equipment nameplates and capture invoices."
+          "cameraPermission": "Dwella uses the camera to scan equipment nameplates and capture invoices."
         }
       ],
       [
         "expo-image-picker",
         {
-          "photosPermission": "Homestead uses your photo library to attach photos and documents to your home record."
+          "photosPermission": "Dwella uses your photo library to attach photos and documents to your home record."
         }
       ]
     ],

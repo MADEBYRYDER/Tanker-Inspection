@@ -208,6 +208,8 @@ ul.queue a:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px;
 .chip.routine { background: var(--routine-bg); color: var(--routine); }
 .chip.done { background: var(--done-bg); color: var(--done); }
 .chip.plain { background: var(--panel-2); color: var(--ink-2); }
+/* A subscribing household. Ranks within an urgency band, never across one. */
+.chip.priority { background: var(--chrome); color: var(--chrome-ink); }
 
 section.card {
   background: var(--panel); border: 1px solid var(--rule); border-radius: 6px;
@@ -315,13 +317,13 @@ ${options?.bodyEnd ?? ''}
 export function loginPage(options: { error?: boolean }): string {
   return shell(
     'Dispatch — sign in',
-    `<header class="top"><div><div class="mark">Homestead</div><div class="crew">Dispatch</div></div></header>
+    `<header class="top"><div><div class="mark">Dwella</div><div class="crew">Dispatch</div></div></header>
 <main>
   ${options.error ? '<p class="notice error">That access token was not recognised.</p>' : ''}
   <section class="card">
     <h2>Sign in</h2>
     <p style="margin-top:0;color:var(--ink-2);font-size:14.5px">
-      Enter the access token your Homestead operator issued to your company. It signs in this
+      Enter the access token your Dwella operator issued to your company. It signs in this
       device for 30 days.
     </p>
     <form method="post" action="/dispatch/login">
@@ -362,6 +364,7 @@ export function queuePage(params: {
       return `<li><a class="u-${esc(request.urgency)}" href="/dispatch/r/${esc(request.id)}">
   <div class="row-top">
     <h3>${esc(request.title)}</h3>
+    ${request.priority ? '<span class="chip priority" title="Dwella+ household">DWELLA+</span>' : ''}
     <span class="chip ${request.status === 'completed' ? 'done' : 'plain'}">${esc(STATUS_LABEL[request.status])}</span>
   </div>
   <div class="row-meta">${meta}</div>
@@ -372,7 +375,7 @@ export function queuePage(params: {
   return shell(
     `Dispatch — ${provider.name}`,
     `<header class="top">
-  <div><div class="mark">Homestead Dispatch</div><div class="crew">${esc(provider.name)}</div></div>
+  <div><div class="mark">Dwella Dispatch</div><div class="crew">${esc(provider.name)}</div></div>
   <form method="post" action="/dispatch/logout"><button class="link" type="submit">Sign out</button></form>
 </header>
 <main>
@@ -624,7 +627,7 @@ export function requestPage(params: {
   return shell(
     `${request.title} — Dispatch`,
     `<header class="top">
-  <div><div class="mark">Homestead Dispatch</div><div class="crew">${esc(provider.name)}</div></div>
+  <div><div class="mark">Dwella Dispatch</div><div class="crew">${esc(provider.name)}</div></div>
   <form method="post" action="/dispatch/logout"><button class="link" type="submit">Sign out</button></form>
 </header>
 <main>
@@ -634,6 +637,7 @@ export function requestPage(params: {
   <section class="card">
     <div class="row-top" style="margin-bottom:8px">
       <h1 style="font-size:21px;flex:1">${esc(request.title)}</h1>
+      ${request.priority ? '<span class="chip priority">DWELLA+</span>' : ''}
       <span class="chip ${esc(request.urgency)}">${esc(request.urgency)}</span>
     </div>
     <div class="row-meta">

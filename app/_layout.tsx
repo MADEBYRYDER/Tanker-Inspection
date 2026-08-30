@@ -42,9 +42,12 @@ export default function RootLayout() {
             headerTintColor: '#FFFFFF',
           }}
         />
-        <Stack.Screen name="costs" options={{ title: 'Costs' }} />
+        <Stack.Screen name="costs" options={{ title: 'Money' }} />
+        {/* The paid tier gets no header title of its own — the screen leads with
+            its own mark, and "Dwella+ · Dwella+" reads as a mistake. */}
+        <Stack.Screen name="plus" options={{ title: '' }} />
         <Stack.Screen name="record/index" options={{ title: 'Home Record' }} />
-        <Stack.Screen name="assistant" options={{ title: 'Ask Your Home' }} />
+        <Stack.Screen name="assistant" options={{ title: 'Ask Dwella' }} />
         <Stack.Screen name="settings" options={{ title: 'Settings' }} />
       </Stack>
     </SafeAreaProvider>

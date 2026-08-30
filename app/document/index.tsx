@@ -7,6 +7,7 @@ import { isISODate, today } from '../../src/core/dates';
 import { buildGroundingContext } from '../../src/core/engine/query';
 import { formatMoneyExact } from '../../src/core/money';
 import type { TimelineEventType } from '../../src/core/types';
+import { usePlan } from '../../src/state/plan';
 import { useHomeRecord, useStore } from '../../src/state/store';
 import { PhotoTray, canSubmit } from '../../src/ui/PhotoTray';
 import { toPayload, type CapturedImage } from '../../src/ui/capture';
@@ -31,6 +32,7 @@ import {
   SectionTitle,
   Title,
 } from '../../src/ui/components';
+import { AllowanceRow, AllowanceSpent } from '../../src/ui/plus';
 import { spacing, useTheme } from '../../src/ui/theme';
 
 /**
@@ -50,6 +52,7 @@ export default function DocumentCapture() {
   const addEvent = useStore((s) => s.addEvent);
   const addDocument = useStore((s) => s.addDocument);
   const updateComponent = useStore((s) => s.updateComponent);
+  const { usage } = usePlan();
 
   const [images, setImages] = useState<CapturedImage[]>([]);
   const [busy, setBusy] = useState(false);
@@ -291,6 +294,35 @@ export default function DocumentCapture() {
     );
   }
 
+  const storage = usage('documents');
+
+  /*
+   * The document cap is a standing one on what is stored, not a monthly rate, so
+   * hitting it blocks the whole screen rather than one action. Blocking early
+   * matters here: letting someone photograph and extract a five-page invoice
+   * before telling them there is nowhere to file it wastes their time and their
+   * goodwill.
+   */
+  if (!storage.allowed && !draft) {
+    return (
+      <Screen>
+        <Title>Add a document</Title>
+        <AllowanceSpent
+          what={`${storage.limit}th stored document`}
+          period="total"
+          alternative="You can still log the work itself on your timeline with its date, cost, and who did it — that costs nothing and is what the schedule and forecast actually read. It is only the photographed paperwork that is capped."
+        />
+        <Button
+          label="Log the work without the paperwork"
+          icon="create-outline"
+          variant="secondary"
+          onPress={startBlank}
+          full
+        />
+      </Screen>
+    );
+  }
+
   return (
     <Screen>
       <View style={{ gap: spacing.sm }}>
@@ -299,6 +331,7 @@ export default function DocumentCapture() {
           Photograph an invoice, receipt, warranty, permit, or inspection report. The app reads the
           company, the date, the amount, and what was done, then files it against the right equipment.
         </Body>
+        <AllowanceRow verdict={storage} noun={{ one: 'document', many: 'documents' }} />
       </View>
 
       <Card>

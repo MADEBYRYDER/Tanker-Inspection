@@ -15,7 +15,7 @@ import {
 } from './schemas';
 
 /**
- * Client for the Homestead AI gateway.
+ * Client for the Dwella AI gateway.
  *
  * The app never holds an Anthropic API key. A key shipped inside a mobile binary is
  * a key you have published — it can be pulled out of the app bundle in minutes and

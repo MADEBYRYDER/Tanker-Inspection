@@ -35,6 +35,8 @@ export interface StoredRequest {
   providerId: string;
   title: string;
   urgency: 'emergency' | 'soon' | 'routine';
+  /** The household subscribes to Dwella+. Affects queue order only. */
+  priority: boolean;
   status: DispatchStatus;
   packet: ServiceRequestPacket;
   photoIds: string[];
@@ -55,7 +57,7 @@ interface Database {
   requests: StoredRequest[];
 }
 
-const DATA_DIR = process.env.HOMESTEAD_DATA_DIR ?? path.join(process.cwd(), '.dispatch-data');
+const DATA_DIR = process.env.DWELLA_DATA_DIR ?? path.join(process.cwd(), '.dispatch-data');
 const DB_PATH = path.join(DATA_DIR, 'requests.json');
 const PHOTO_DIR = path.join(DATA_DIR, 'photos');
 
@@ -138,6 +140,7 @@ export function createRequest(input: {
   providerId: string;
   title: string;
   urgency: StoredRequest['urgency'];
+  priority: boolean;
   packet: ServiceRequestPacket;
   photoIds: string[];
 }): StoredRequest {
@@ -180,10 +183,19 @@ export function listForProvider(
     .filter((r) => (filter?.status ? r.status === filter.status : true))
     .filter((r) => (filter?.open ? !CLOSED.includes(r.status) : true))
     .sort((a, b) => {
-      // Emergencies first, then oldest first — a queue, not a feed.
+      /*
+       * Urgency first, always. Dwella+ priority only breaks ties *within* an
+       * urgency band — a subscriber's routine job never gets in front of
+       * somebody's emergency. Selling a place ahead of a flooding basement is
+       * not a subscription feature.
+       */
       const rank = (r: StoredRequest) =>
         r.urgency === 'emergency' ? 0 : r.urgency === 'soon' ? 1 : 2;
-      return rank(a) - rank(b) || a.receivedAt.localeCompare(b.receivedAt);
+      return (
+        rank(a) - rank(b) ||
+        Number(b.priority) - Number(a.priority) ||
+        a.receivedAt.localeCompare(b.receivedAt)
+      );
     });
 }
 

@@ -4,6 +4,7 @@ import { useMemo } from 'react';
 import { Text, View } from 'react-native';
 import { today } from '../src/core/dates';
 import { computeHomeHealth } from '../src/core/engine/health';
+import { usePlan } from '../src/state/plan';
 import { useHomeRecord } from '../src/state/store';
 import {
   BarRow,
@@ -22,6 +23,7 @@ import {
   Tertiary,
   Title,
 } from '../src/ui/components';
+import { PlusGate } from '../src/ui/plus';
 import { healthStatus, scoreBand, spacing, tabular, toneFor, useTheme } from '../src/ui/theme';
 
 /**
@@ -39,6 +41,7 @@ export default function HealthScreen() {
   const theme = useTheme();
   const router = useRouter();
   const record = useHomeRecord();
+  const { can } = usePlan();
   const asOf = today();
 
   const health = useMemo(
@@ -112,16 +115,19 @@ export default function HealthScreen() {
             );
           })}
         </Card>
-        <Tertiary>Tap any system to see the full reasoning and its history.</Tertiary>
+        <Tertiary>Tap any system to see its history.</Tertiary>
       </View>
 
-      {/* The worst two, spelled out — the ones actually worth reading */}
-      <View style={{ gap: spacing.lg }}>
-        <Label>Why these need attention</Label>
-        {health.components
-          .filter((c) => c.status === 'aging' || c.status === 'plan_replacement' || c.status === 'unknown')
-          .slice(0, 3)
-          .map((component) => {
+      {/*
+       * The reasoning is the paid half. Free gets the picture — which systems are
+       * fine and which are not, which is the thing a homeowner needs to know and
+       * should never have to pay for. Dwella+ gets the "why": what Dwella read,
+       * what it inferred, and which of the two each conclusion rests on.
+       */}
+      {can('health_detail') ? (
+        <View style={{ gap: spacing.lg }}>
+          <Label>Why these need attention</Label>
+          {attention.slice(0, 3).map((component) => {
             const status = healthStatus(component.status);
             return (
               <Card
@@ -148,7 +154,21 @@ export default function HealthScreen() {
               </Card>
             );
           })}
-      </View>
+        </View>
+      ) : (
+        <PlusGate
+          icon="pulse-outline"
+          title="Why each system has its status"
+          promise={
+            attention.length > 0
+              ? `${attention.length === 1 ? 'One system needs' : `${attention.length} systems need`} attention — ${attention
+                  .slice(0, 3)
+                  .map((c) => c.name)
+                  .join(', ')}${attention.length > 3 ? ', and more' : ''}. Dwella+ explains what led to each status, which parts of it are documented fact and which are estimated, and what to do next.`
+              : 'Every system comes with the reasoning behind its status — what Dwella read off your record, what it inferred, and which is which.'
+          }
+        />
+      )}
 
       <Card tone={theme.surfaceSunken}>
         <Label>What is known vs. inferred</Label>

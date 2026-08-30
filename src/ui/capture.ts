@@ -87,7 +87,7 @@ async function ensureCameraPermission(): Promise<boolean> {
   if (!current.canAskAgain) {
     Alert.alert(
       'Camera access is off',
-      'Homestead needs the camera to read nameplates and invoices. Turn it on in Settings to scan.',
+      'Dwella needs the camera to read nameplates and invoices. Turn it on in Settings to scan.',
     );
     return false;
   }

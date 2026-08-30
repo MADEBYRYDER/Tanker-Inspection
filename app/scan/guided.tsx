@@ -3,6 +3,7 @@ import { useRouter } from 'expo-router';
 import { useMemo } from 'react';
 import { View } from 'react-native';
 import { guidedProgress, type GuidedStepState } from '../../src/core/engine/guided';
+import { usePlan } from '../../src/state/plan';
 import { useHomeRecord } from '../../src/state/store';
 import {
   Body,
@@ -18,6 +19,7 @@ import {
   Tertiary,
   Title,
 } from '../../src/ui/components';
+import { PlusGate } from '../../src/ui/plus';
 import { radius, spacing, useTheme } from '../../src/ui/theme';
 
 /**
@@ -34,6 +36,7 @@ export default function GuidedScan() {
   const theme = useTheme();
   const router = useRouter();
   const record = useHomeRecord();
+  const { canStartTrial } = usePlan();
 
   const progress = useMemo(() => (record ? guidedProgress(record) : undefined), [record]);
 
@@ -55,19 +58,35 @@ export default function GuidedScan() {
       </View>
 
       {complete ? (
-        <Card raised={2}>
-          <Row gap={spacing.md}>
-            <Ionicons name="checkmark-circle" size={24} color={theme.sage} />
-            <View style={{ flex: 1 }}>
-              <BodyStrong>Every area is covered</BodyStrong>
-              <Small>
-                You can keep adding equipment any time — the record grows as you go, and every
-                addition sharpens the maintenance schedule and the cost forecast.
-              </Small>
-            </View>
-          </Row>
-          <Button label="Back to home" onPress={() => router.replace('/(tabs)')} full />
-        </Card>
+        <>
+          <Card raised={2}>
+            <Row gap={spacing.md}>
+              <Ionicons name="checkmark-circle" size={24} color={theme.sage} />
+              <View style={{ flex: 1 }}>
+                <BodyStrong>Every area is covered</BodyStrong>
+                <Small>
+                  You can keep adding equipment any time — the record grows as you go, and every
+                  addition sharpens the maintenance schedule and the cost forecast.
+                </Small>
+              </View>
+            </Row>
+            <Button label="Back to home" onPress={() => router.replace('/(tabs)')} full />
+          </Card>
+
+          {/*
+           * The trial is offered here and nowhere else in the flow, because this
+           * is the first moment Dwella knows enough about the house for the
+           * forecast to say anything true. Offering it during onboarding would
+           * be selling a projection of an empty record.
+           */}
+          {canStartTrial ? (
+            <PlusGate
+              icon="trending-up-outline"
+              title="Now Dwella can look ahead"
+              promise={`Your record covers all ${progress.steps.length} areas — enough for Dwella to project what this house will need over the next five years, what each item is likely to cost, and what to set aside every month for it.`}
+            />
+          ) : null}
+        </>
       ) : (
         <Card raised={2}>
           <Tertiary>NEXT</Tertiary>

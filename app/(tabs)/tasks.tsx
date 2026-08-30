@@ -4,8 +4,10 @@ import { useMemo, useState } from 'react';
 import { View } from 'react-native';
 import { daysBetween, formatDate, today } from '../../src/core/dates';
 import { generateTasks } from '../../src/core/engine/schedule';
+import { SEASON_LABEL, seasonalPlan } from '../../src/core/engine/seasonal';
 import { formatMoney } from '../../src/core/money';
 import type { ScheduledTask } from '../../src/core/types';
+import { usePlan } from '../../src/state/plan';
 import { useHomeRecord } from '../../src/state/store';
 import {
   Button,
@@ -23,6 +25,7 @@ import {
   Title,
   BodyStrong,
 } from '../../src/ui/components';
+import { PlusMark, PlusRowLock } from '../../src/ui/plus';
 import { spacing, urgencyStatus, useTheme } from '../../src/ui/theme';
 
 type Filter = 'all' | 'diy' | 'pro';
@@ -37,6 +40,8 @@ type Filter = 'all' | 'diy' | 'pro';
 export default function Tasks() {
   const router = useRouter();
   const record = useHomeRecord();
+  const { can } = usePlan();
+  const palette = useTheme();
   const asOf = today();
   const [filter, setFilter] = useState<Filter>('all');
 
@@ -49,6 +54,10 @@ export default function Tasks() {
   }, [tasks, filter]);
 
   const buckets = useMemo(() => bucketTasks(filtered, asOf), [filtered, asOf]);
+  const plan = useMemo(
+    () => (record ? seasonalPlan(record, { personalised: can('seasonal_personalized'), asOf }) : undefined),
+    [record, can, asOf],
+  );
   const overdueCount = tasks.filter((t) => t.urgency === 'overdue').length;
   const neverLogged = tasks.filter((t) => !t.lastCompletedOn).length;
 
@@ -81,6 +90,35 @@ export default function Tasks() {
         <Chip label="I can do it" selected={filter === 'diy'} onPress={() => setFilter('diy')} />
         <Chip label="Needs a pro" selected={filter === 'pro'} onPress={() => setFilter('pro')} />
       </Row>
+
+      {/* The season, as a lens on the same schedule rather than a second list. */}
+      {filter === 'all' && plan ? (
+        <Card raised={1}>
+          <Row justify="space-between">
+            <Label>{`${SEASON_LABEL[plan.season]} plan`}</Label>
+            {!plan.personalised ? <PlusMark /> : null}
+          </Row>
+          {plan.note ? <Tertiary>{plan.note}</Tertiary> : null}
+          {plan.items.slice(0, 5).map((item, index) => (
+            <Row key={index} gap={spacing.sm} align="flex-start">
+              <Ionicons
+                name={item.because ? 'location-outline' : 'ellipse-outline'}
+                size={14}
+                color={palette.textTertiary}
+                style={{ marginTop: 3 }}
+              />
+              <View style={{ flex: 1 }}>
+                <Small>{item.title}</Small>
+                {item.componentName ? <Tertiary>{item.componentName}</Tertiary> : null}
+                {item.because ? <Tertiary>{item.because}</Tertiary> : null}
+              </View>
+            </Row>
+          ))}
+          {!plan.personalised ? (
+            <PlusRowLock label="Dwella+ builds this from your own systems, what is actually due, and your climate." />
+          ) : null}
+        </Card>
+      ) : null}
 
       {neverLogged > 0 && filter === 'all' ? (
         <Tertiary>
