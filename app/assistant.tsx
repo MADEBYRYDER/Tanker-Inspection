@@ -30,6 +30,7 @@ import {
   Small,
   Tertiary,
 } from '../src/ui/components';
+import { useKeyboardInset } from '../src/ui/keyboard';
 import { AllowanceRow, AllowanceSpent } from '../src/ui/plus';
 import { radius, spacing, type, useTheme } from '../src/ui/theme';
 
@@ -66,6 +67,7 @@ export default function Assistant() {
   const [busy, setBusy] = useState(false);
   const scrollRef = useRef<ScrollView>(null);
   const seeded = useRef(false);
+  const keyboardInset = useKeyboardInset();
 
   const send = useCallback(
     async (question: string) => {
@@ -164,6 +166,15 @@ export default function Assistant() {
     }
   }, [params.seed, send]);
 
+  // Opening the keyboard shortens the list as well as moving the composer, so
+  // follow it down — otherwise typing a reply scrolls the answer you are
+  // replying to off the top.
+  useEffect(() => {
+    if (keyboardInset > 0) {
+      requestAnimationFrame(() => scrollRef.current?.scrollToEnd({ animated: true }));
+    }
+  }, [keyboardInset]);
+
   if (!record) {
     return (
       <SafeAreaView style={{ flex: 1, backgroundColor: theme.bg, padding: spacing.lg }}>
@@ -174,8 +185,14 @@ export default function Assistant() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: theme.bg }} edges={['bottom']}>
+      {/*
+        KeyboardAvoidingView still does the work on iOS and Android. On web it
+        renders as a plain View and never reacts, so the measured inset is what
+        lifts the composer clear of the keyboard there. `useKeyboardInset`
+        returns 0 on native, so the two never both apply.
+      */}
       <KeyboardAvoidingView
-        style={{ flex: 1 }}
+        style={{ flex: 1, paddingBottom: keyboardInset }}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         keyboardVerticalOffset={90}
       >
