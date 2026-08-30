@@ -105,10 +105,15 @@ export function buildServiceRequestPacket(params: {
 
   return {
     homeSummary,
+    /*
+     * The address belongs to the property; the name and number belong to
+     * whoever is sending the request. Keeping them apart is what stops a
+     * previous owner's phone number travelling with a house that was sold.
+     */
     contact: {
       address,
-      ownerName: home.ownerName,
-      phone: home.contactPhone,
+      ownerName: record.viewer?.displayName,
+      phone: record.viewer?.phone,
     },
     equipment,
     relevantHistory: history,

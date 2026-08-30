@@ -9,7 +9,7 @@ import { summarizeSpend } from '../../src/core/engine/timeline';
 import { formatMoney } from '../../src/core/money';
 import { buildSampleRecord } from '../../src/data/sampleHome';
 import { usePlan } from '../../src/state/plan';
-import { useHomeRecord, useStore } from '../../src/state/store';
+import { useHomeRecord, useHousehold, useStore } from '../../src/state/store';
 import {
   Badge,
   Body,
@@ -40,6 +40,8 @@ export default function Profile() {
   const router = useRouter();
   const record = useHomeRecord();
   const { can, isPlus, canStartTrial, trialDaysLeft } = usePlan();
+  const propertyCount = useStore((s) => s.properties.length);
+  const householdCount = useHousehold().length;
   const reset = useStore((s) => s.resetEverything);
   const loadRecord = useStore((s) => s.loadRecord);
   const [gateway, setGateway] = useState<{ ok: boolean; model?: string; detail?: string }>();
@@ -203,6 +205,20 @@ export default function Profile() {
             onPress={() => router.push('/settings')}
           />
           <Divider inset={48} />
+          <ListRow
+            icon="business-outline"
+            title="My Homes"
+            subtitle={propertyCount === 1 ? 'One property' : `${propertyCount} properties`}
+            onPress={() => router.push('/homes')}
+          />
+          <ListRow
+            icon="people-outline"
+            title="Household"
+            subtitle={
+              householdCount === 1 ? 'Just you' : `${householdCount} people have access`
+            }
+            onPress={() => router.push('/household')}
+          />
           <ListRow
             icon="settings-outline"
             title="Settings"

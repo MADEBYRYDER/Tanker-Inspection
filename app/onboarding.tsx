@@ -2,10 +2,13 @@ import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { View } from 'react-native';
 import { buildSampleRecord } from '../src/data/sampleHome';
+import { PROPERTY_TYPES, type PropertyType } from '../src/core/account';
+import { newId } from '../src/state/ids';
 import { useStore } from '../src/state/store';
 import type { Home } from '../src/core/types';
 import {
   Body,
+  Tertiary,
   Button,
   Card,
   Chip,
@@ -29,7 +32,8 @@ const CLIMATES: { value: Home['climate']; label: string; hint: string }[] = [
 
 export default function Onboarding() {
   const router = useRouter();
-  const createHome = useStore((s) => s.createHome);
+  const signIn = useStore((s) => s.signIn);
+  const addProperty = useStore((s) => s.addProperty);
   const loadRecord = useStore((s) => s.loadRecord);
 
   const [ownerName, setOwnerName] = useState('');
@@ -40,6 +44,7 @@ export default function Onboarding() {
   const [yearBuilt, setYearBuilt] = useState('');
   const [squareFeet, setSquareFeet] = useState('');
   const [climate, setClimate] = useState<Home['climate']>('temperate');
+  const [propertyType, setPropertyType] = useState<PropertyType>('primary');
 
   const parsedYear = Number(yearBuilt);
   const yearValid =
@@ -48,9 +53,20 @@ export default function Onboarding() {
   const canContinue = nickname.trim().length > 0 && yearValid;
 
   const start = () => {
-    createHome({
+    /*
+     * Two objects, not one. The account is the person and travels with them
+     * across every property they ever add; the property is the building and
+     * stays with the building when it is sold. Creating them together here is
+     * the only place the two are ever conflated, and even then only in time.
+     */
+    signIn({
+      id: newId('acct'),
+      displayName: ownerName.trim() || 'You',
+      createdAt: new Date().toISOString(),
+    });
+    addProperty({
       nickname: nickname.trim(),
-      ownerName: ownerName.trim() || undefined,
+      propertyType,
       addressLine1: address.trim() || undefined,
       city: city.trim() || undefined,
       state: state.trim() || undefined,
@@ -145,6 +161,29 @@ export default function Onboarding() {
             />
           ))}
         </Row>
+      </Card>
+
+      {/*
+       * Asked now because the answer is cheap to collect and expensive to
+       * backfill. A rental and a primary residence want different defaults
+       * eventually; the data model carries the distinction from day one either
+       * way, so nobody has to be re-interviewed later.
+       */}
+      <Card>
+        <SectionTitle title="What kind of property?" />
+        <Row wrap gap={spacing.sm}>
+          {PROPERTY_TYPES.map((option) => (
+            <Chip
+              key={option.key}
+              label={option.label}
+              selected={propertyType === option.key}
+              onPress={() => setPropertyType(option.key)}
+            />
+          ))}
+        </Row>
+        <Tertiary>
+          {PROPERTY_TYPES.find((t) => t.key === propertyType)?.blurb}
+        </Tertiary>
         <Small>{CLIMATES.find((c) => c.value === climate)?.hint}</Small>
       </Card>
 

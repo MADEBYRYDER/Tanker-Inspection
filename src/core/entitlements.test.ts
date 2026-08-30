@@ -5,8 +5,10 @@ import {
   PLANS,
   PRICES,
   TRIAL_DAYS,
+  EXTRA_HOME_PRICE_CENTS,
   checkUsage,
   hasFeature,
+  homeAllowance,
   planFor,
   startTrial,
   trialActive,
@@ -184,6 +186,45 @@ describe('the published comparison', () => {
       const row = COMPARISON.find((r) => r.label === label);
       expect(row, `missing comparison row: ${label}`).toBeDefined();
       expect(row!.free).not.toBe('Not included');
+    }
+  });
+});
+
+describe('how many homes a plan covers', () => {
+  it('caps the free plan at one property', () => {
+    const free = homeAllowance('free', 1);
+    expect(free.canAddAnother).toBe(false);
+    expect(free.limit).toBe(1);
+    // Free has no billing relationship, so extras are refused rather than charged.
+    expect(free.monthlyTotalCents).toBe(0);
+  });
+
+  it('includes one home with Dwella+ and charges for the rest', () => {
+    expect(homeAllowance('plus', 1).billableExtras).toBe(0);
+    expect(homeAllowance('plus', 3).billableExtras).toBe(2);
+    expect(homeAllowance('plus', 3).monthlyTotalCents).toBe(799 + 2 * EXTRA_HOME_PRICE_CENTS);
+  });
+
+  it('does not stop a paying account adding another property', () => {
+    expect(homeAllowance('plus', 37).canAddAnother).toBe(true);
+  });
+
+  it('gives Portfolio five before the per-home charge starts', () => {
+    expect(homeAllowance('portfolio', 5).billableExtras).toBe(0);
+    expect(homeAllowance('portfolio', 6).billableExtras).toBe(1);
+  });
+
+  it('never lets a landlord with thirty-seven rentals pay for one', () => {
+    // The whole point of per-home pricing: thirty-seven records cost thirty-seven
+    // times as much to hold, scan against, and forecast.
+    expect(homeAllowance('plus', 37).monthlyTotalCents).toBeGreaterThan(
+      homeAllowance('plus', 1).monthlyTotalCents * 10,
+    );
+  });
+
+  it('gives every paid plan the full feature set', () => {
+    for (const key of Object.keys(PLANS.plus.features) as (keyof typeof PLANS.plus.features)[]) {
+      expect(hasFeature('portfolio', key)).toBe(true);
     }
   });
 });

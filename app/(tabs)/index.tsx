@@ -11,7 +11,7 @@ import { generateTasks } from '../../src/core/engine/schedule';
 import { formatApprox, formatMoney } from '../../src/core/money';
 import type { ComponentCategory, HomeComponent, ScheduledTask } from '../../src/core/types';
 import { usePlan } from '../../src/state/plan';
-import { useHomeRecord } from '../../src/state/store';
+import { useHomeRecord, useStore } from '../../src/state/store';
 import {
   AskRow,
   Body,
@@ -68,6 +68,7 @@ export default function Dashboard() {
   const router = useRouter();
   const record = useHomeRecord();
   const { can } = usePlan();
+  const propertyCount = useStore((s) => s.properties.length);
   const asOf = today();
 
   const derived = useMemo(() => {
@@ -122,7 +123,7 @@ export default function Dashboard() {
   const comingUp = tasks.filter((t) => !attentionTasks.includes(t)).slice(0, 4);
 
   const band = scoreBand(health.score);
-  const firstName = record.home.ownerName?.trim().split(' ')[0];
+  const firstName = record.viewer?.displayName.trim().split(' ')[0];
   const systems = groupByCategory(record.components);
 
   return (
@@ -134,12 +135,25 @@ export default function Dashboard() {
             <Text style={[type.title, { color: '#FFFFFF' }]}>
               {firstName ? `${greeting()}, ${firstName}` : greeting()}
             </Text>
-            <Row gap={6}>
-              <Ionicons name="location-outline" size={13} color="rgba(255,255,255,0.6)" />
-              <Text style={[type.small, { color: 'rgba(255,255,255,0.68)' }]}>
-                {record.home.addressLine1 ?? record.home.nickname}
-              </Text>
-            </Row>
+            {/*
+              Which home this is, and a way to change it. Sitting under the
+              greeting rather than in a menu because on an account holding
+              several properties, "which house am I looking at" is a question
+              that has to be answered before anything else on the screen means
+              anything.
+            */}
+            <Touchable onPress={() => router.push('/homes')} scaleTo={0.98}>
+              <Row gap={6}>
+                <Ionicons name="location-outline" size={13} color="rgba(255,255,255,0.6)" />
+                <Text style={[type.small, { color: 'rgba(255,255,255,0.68)' }]} numberOfLines={1}>
+                  {record.home.nickname}
+                  {record.home.addressLine1 ? ` · ${record.home.addressLine1}` : ''}
+                </Text>
+                {propertyCount > 1 ? (
+                  <Ionicons name="chevron-down" size={13} color="rgba(255,255,255,0.6)" />
+                ) : null}
+              </Row>
+            </Touchable>
           </View>
 
           {hasEquipment ? (

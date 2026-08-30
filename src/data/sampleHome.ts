@@ -1,4 +1,4 @@
-import type { HomeComponent, HomeRecord, MediaRef, TimelineEvent } from '../core/types';
+import type { DocumentRef, HomeComponent, HomeRecord, MediaRef, TimelineEvent } from '../core/types';
 
 /**
  * A worked example of a real home record.
@@ -403,8 +403,8 @@ export function buildSampleRecord(): { record: HomeRecord; media: MediaRef[] } {
       home: {
         id: HOME_ID,
         nickname: 'Marsh Point',
-        ownerName: 'Ryder',
-        contactPhone: '(843) 555-0142',
+        publicId: 'DW-829173',
+        propertyType: 'primary',
         addressLine1: '412 Marsh Point Lane',
         city: 'Mount Pleasant',
         state: 'SC',
@@ -415,9 +415,15 @@ export function buildSampleRecord(): { record: HomeRecord; media: MediaRef[] } {
         ownedSince: '2019-07-15',
         createdAt: '2024-01-15T10:00:00.000Z',
       },
+      viewer: {
+        accountId: 'acct_sample',
+        displayName: 'Ryder',
+        phone: '(843) 555-0142',
+        role: 'owner',
+      },
       components,
       events,
-      documents: [
+      documents: ([
         {
           id: 'doc_roof_invoice',
           title: 'Palmetto Roofing — final invoice',
@@ -454,7 +460,7 @@ export function buildSampleRecord(): { record: HomeRecord; media: MediaRef[] } {
           addedAt: '2021-11-06T12:00:00.000Z',
           visibility: 'transferable',
         },
-      ],
+      ] as Omit<DocumentRef, 'homeId'>[]).map((d) => ({ ...d, homeId: HOME_ID })),
       completions: [
         {
           id: 'cpl_1',

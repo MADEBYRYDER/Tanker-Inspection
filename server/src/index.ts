@@ -13,6 +13,7 @@ import {
   generateStructured,
   type ImageInput,
 } from './anthropic';
+import { AuthError, accountsRouter } from './accounts/routes';
 import { DispatchError, dispatchRouter } from './dispatch/routes';
 import { allProviders, usingGeneratedToken } from './dispatch/providers';
 import { ASSISTANT_SYSTEM, DOCUMENT_SYSTEM, PROBLEM_SYSTEM, SCAN_SYSTEM } from './prompts';
@@ -126,6 +127,9 @@ const asyncRoute =
 app.get('/health', (_req, res) => {
   res.json({ ok: true, model: MODEL, service: 'dwella-server' });
 });
+
+/** Accounts, households, and transfer of ownership. */
+app.use(accountsRouter());
 
 /** Service request intake, the contractor queue, and status back to the homeowner. */
 app.use(dispatchRouter());
@@ -245,6 +249,10 @@ app.post(
  * ---------------------------------------------------------------------- */
 
 app.use((error: unknown, req: Request, res: Response, _next: NextFunction) => {
+  if (error instanceof AuthError) {
+    res.status(error.status).json({ error: 'auth_error', detail: error.message });
+    return;
+  }
   if (error instanceof DispatchError) {
     // An unauthenticated browser hitting a dispatch page gets the sign-in screen
     // rather than a JSON 401 it cannot do anything with.

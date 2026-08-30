@@ -80,7 +80,7 @@ function ComposeRequest({
   const createRequest = useStore((s) => s.createServiceRequest);
   const submitRequest = useStore((s) => s.submitServiceRequest);
   const recordDelivery = useStore((s) => s.recordDelivery);
-  const updateHome = useStore((s) => s.updateHome);
+  const updateAccount = useStore((s) => s.updateAccount);
   const addMedia = useStore((s) => s.addMedia);
   const { can } = usePlan();
 
@@ -92,7 +92,7 @@ function ComposeRequest({
   );
   const [providerId, setProviderId] = useState<string | undefined>(PROVIDERS[0]?.id);
   const [images, setImages] = useState<CapturedImage[]>([]);
-  const [phone, setPhone] = useState(record?.home.contactPhone ?? '');
+  const [phone, setPhone] = useState(record?.viewer?.phone ?? '');
   const [sending, setSending] = useState(false);
   const [sendError, setSendError] = useState<string | undefined>();
 
@@ -106,7 +106,12 @@ function ComposeRequest({
   const preview = useMemo(() => {
     if (!record) return undefined;
     return buildServiceRequestPacket({
-      record: { ...record, home: { ...record.home, contactPhone: phone.trim() || undefined } },
+      record: {
+        ...record,
+        viewer: record.viewer
+          ? { ...record.viewer, phone: phone.trim() || undefined }
+          : undefined,
+      },
       component,
       problem: problem || '(describe the problem)',
       photoCount: images.length,
@@ -122,7 +127,7 @@ function ComposeRequest({
 
     // A number entered here is worth keeping; the next request should not ask again.
     const trimmedPhone = phone.trim() || undefined;
-    if (trimmedPhone !== record.home.contactPhone) updateHome({ contactPhone: trimmedPhone });
+    if (trimmedPhone !== record.viewer?.phone) updateAccount({ phone: trimmedPhone });
 
     const photoIds = images.map(
       (image) => addMedia({ uri: image.uri, kind: 'photo', role: 'issue' }).id,

@@ -1,3 +1,4 @@
+import type { PropertyType, Role } from './account';
 /**
  * Core domain model for the home record.
  *
@@ -45,6 +46,8 @@ export type ComponentCategory =
 
 export interface MediaRef {
   id: string;
+  /** Which property this belongs to. Every record in the app is property-scoped. */
+  homeId: string;
   uri: string;
   kind: 'photo' | 'video';
   /** What the photo is of — nameplates are treated specially by the scanner. */
@@ -55,6 +58,8 @@ export interface MediaRef {
 
 export interface DocumentRef {
   id: string;
+  /** Which property this belongs to. Every record in the app is property-scoped. */
+  homeId: string;
   title: string;
   uri?: string;
   kind: 'invoice' | 'receipt' | 'warranty' | 'manual' | 'permit' | 'inspection' | 'other';
@@ -329,16 +334,20 @@ export interface Provider {
   isLaunchPartner?: boolean;
 }
 
+/**
+ * A property.
+ *
+ * Deliberately holds nothing about a person. Who lives here, who owns it, and
+ * who may see it are memberships and ownership periods in `account.ts` — which
+ * is what lets this object survive being sold rather than being copied between
+ * two people's accounts.
+ */
 export interface Home {
   id: string;
+  /** Quotable identifier, stable for the life of the building. `DW-829173`. */
+  publicId: string;
+  propertyType: PropertyType;
   nickname: string;
-  /**
-   * Who lives here. Used to address them, and included in a service request
-   * packet so a contractor knows who to ask for — never sent anywhere else.
-   */
-  ownerName?: string;
-  /** Callback number, asked for at the point a service request is composed. */
-  contactPhone?: string;
   addressLine1?: string;
   city?: string;
   state?: string;
@@ -347,13 +356,28 @@ export interface Home {
   squareFeet?: number;
   /** Rough climate bucket; nudges seasonal scheduling and corrosion-sensitive lifespans. */
   climate: 'humid_subtropical' | 'temperate' | 'cold' | 'arid' | 'coastal';
+  /** Start of the current ownership period. Mirrored here so age maths stays local. */
   ownedSince?: ISODate;
   createdAt: ISODateTime;
 }
 
-/** Everything about one home, as held in the app. */
+/** Everything about one property, as held in the app. */
 export interface HomeRecord {
   home: Home;
+  /**
+   * Who is looking at this record, and what they may do with it.
+   *
+   * Not part of the property. It rides along because two things need it: a
+   * service request needs a name and a callback number for the contractor, and
+   * screens need to know whether this viewer may see costs or manage members.
+   * When the house is sold, none of it goes with the property.
+   */
+  viewer?: {
+    accountId: string;
+    displayName: string;
+    phone?: string;
+    role: Role;
+  };
   components: HomeComponent[];
   events: TimelineEvent[];
   documents: DocumentRef[];

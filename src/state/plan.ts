@@ -3,12 +3,14 @@ import { today } from '../core/dates';
 import {
   checkUsage,
   hasFeature,
+  homeAllowance,
   planFor,
   trialAvailable,
   trialDaysRemaining,
   type FeatureKey,
   type MeteredKey,
   type Plan,
+  type HomeAllowance,
   type Subscription,
   type UsageVerdict,
 } from '../core/entitlements';
@@ -36,12 +38,15 @@ export interface PlanState {
   can: (feature: FeatureKey) => boolean;
   /** Whether a metered action has headroom, and how much. */
   usage: (key: MeteredKey) => UsageVerdict;
+  /** How many properties this plan covers, and what another would cost. */
+  homes: HomeAllowance;
 }
 
 export function usePlan(): PlanState {
   const subscription = useStore((s) => s.subscription);
   const usageState = useStore((s) => s.usage);
   const documentCount = useStore((s) => s.documents.length);
+  const propertyCount = useStore((s) => s.properties.length);
 
   return useMemo(() => {
     const asOf = today();
@@ -58,11 +63,12 @@ export function usePlan(): PlanState {
 
     return {
       plan,
-      isPlus: plan === 'plus',
+      isPlus: plan !== 'free',
       subscription,
       trialDaysLeft: trialDaysRemaining(subscription, asOf),
       canStartTrial: trialAvailable(subscription),
       can: (feature: FeatureKey) => hasFeature(plan, feature),
+      homes: homeAllowance(plan, propertyCount),
       usage: (key: MeteredKey) =>
         checkUsage(
           plan,
@@ -72,5 +78,5 @@ export function usePlan(): PlanState {
           key === 'documents' ? documentCount : (monthly?.[key] ?? 0),
         ),
     };
-  }, [subscription, usageState, documentCount]);
+  }, [subscription, usageState, documentCount, propertyCount]);
 }

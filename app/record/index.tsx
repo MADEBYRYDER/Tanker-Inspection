@@ -1,11 +1,11 @@
 import { useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { Alert, Share, View } from 'react-native';
-import { today } from '../../src/core/dates';
+import { isISODate, today } from '../../src/core/dates';
 import { buildHomeRecordReport, renderReportText } from '../../src/core/engine/transfer';
 import { formatMoney } from '../../src/core/money';
 import { usePlan } from '../../src/state/plan';
-import { useHomeRecord } from '../../src/state/store';
+import { useHomeRecord, useOwnership, usePermissions, useStore } from '../../src/state/store';
 import {
   Badge,
   Body,
@@ -15,6 +15,7 @@ import {
   Chip,
   Divider,
   EmptyState,
+  Field,
   Tertiary,
   Heading,
   Small,
@@ -44,6 +45,13 @@ export default function HomeRecordScreen() {
   const router = useRouter();
   const record = useHomeRecord();
   const { can } = usePlan();
+  const { can: mayDo } = usePermissions();
+  const ownership = useOwnership();
+  const transferProperty = useStore((s) => s.transferProperty);
+  const [transferring, setTransferring] = useState(false);
+  const [buyerName, setBuyerName] = useState('');
+  const [saleDate, setSaleDate] = useState(today());
+  const canTransfer = mayDo('transfer_property');
   const [forTransfer, setForTransfer] = useState(false);
   const [includeCosts, setIncludeCosts] = useState(false);
 
@@ -204,9 +212,9 @@ export default function HomeRecordScreen() {
       <Card>
         <Heading>When the house sells</Heading>
         <Small>
-          The transfer copy is what moves to the new owner. They inherit the equipment inventory, the
-          documented work, and the warranties — so the next person does not start from zero, and the
-          record keeps growing rather than resetting every time the house changes hands.
+          Nothing is copied between accounts. This property — {record.home.publicId} — stays the same
+          record it has always been; what changes is who can reach it. Your ownership period closes,
+          the buyer's opens, and everything marked transferable is already there waiting for them.
         </Small>
         <Row gap={spacing.xs} wrap>
           <Badge label="equipment transfers" fg={theme.sage} bg={theme.sageSoft} />
@@ -215,6 +223,81 @@ export default function HomeRecordScreen() {
           <Badge label="your costs do not" fg={theme.textSecondary} bg={theme.surfaceSunken} />
           <Badge label="your notes do not" fg={theme.textSecondary} bg={theme.surfaceSunken} />
         </Row>
+
+        {/* Ownership so far, so the seller can see what the buyer will inherit. */}
+        {ownership.length > 0 ? (
+          <>
+            <Divider />
+            <Tertiary>OWNERSHIP</Tertiary>
+            {ownership.map((period) => (
+              <Row key={period.id} justify="space-between" gap={spacing.md}>
+                <Small style={{ flex: 1 }}>{period.ownerLabel}</Small>
+                <Tertiary>
+                  {period.startedOn.slice(0, 4)}–{period.endedOn?.slice(0, 4) ?? ''}
+                </Tertiary>
+              </Row>
+            ))}
+          </>
+        ) : null}
+
+        {canTransfer ? (
+          transferring ? (
+            <>
+              <Divider />
+              <Field
+                label="Who is taking it on"
+                value={buyerName}
+                onChangeText={setBuyerName}
+                placeholder="The buyer's name"
+                hint="Recorded on the ownership history the next owner inherits."
+              />
+              <Field
+                label="Date of sale"
+                value={saleDate}
+                onChangeText={setSaleDate}
+                placeholder="YYYY-MM-DD"
+              />
+              <Notice tone="attention" icon="warning-outline">
+                This ends your access to {record.home.nickname} on this device. The property record
+                itself is not deleted — it survives the sale, which is the point — but until account
+                sync exists there is no way to hand it to the buyer's phone, so on this build the
+                record leaves with the property. Export and share it first.
+              </Notice>
+              <Button
+                label="Complete the transfer"
+                tone={theme.red}
+                disabled={buyerName.trim().length === 0 || !isISODate(saleDate)}
+                onPress={() =>
+                  Alert.alert(
+                    `Transfer ${record.home.nickname}?`,
+                    'Your ownership period closes and the buyer\u2019s opens. You lose access to this home on this device.',
+                    [
+                      { text: 'Not yet', style: 'cancel' },
+                      {
+                        text: 'Transfer',
+                        style: 'destructive',
+                        onPress: () => {
+                          transferProperty({ toName: buyerName.trim(), on: saleDate });
+                          router.replace('/homes');
+                        },
+                      },
+                    ],
+                  )
+                }
+              />
+              <Button label="Cancel" variant="ghost" onPress={() => setTransferring(false)} />
+            </>
+          ) : (
+            <Button
+              label="Transfer this home record"
+              icon="swap-horizontal-outline"
+              variant="secondary"
+              onPress={() => setTransferring(true)}
+            />
+          )
+        ) : (
+          <Tertiary>Only an owner can transfer this property.</Tertiary>
+        )}
       </Card>
     </Screen>
   );

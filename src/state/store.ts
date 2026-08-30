@@ -11,6 +11,18 @@ import {
   type Subscription,
   type SubscriptionSource,
 } from '../core/entitlements';
+import {
+  canRemoveMember,
+  generatePublicId,
+  householdFor,
+  ownershipHistory,
+  permissionsFor,
+  type Account,
+  type Membership,
+  type OwnershipPeriod,
+  type Permission,
+  type Role,
+} from '../core/account';
 import { buildServiceRequestPacket } from '../core/engine/serviceRequest';
 import type {
   DispatchStatus,
@@ -19,6 +31,7 @@ import type {
   HomeComponent,
   HomeRecord,
   ISODate,
+  ISODateTime,
   MaintenanceCompletion,
   MediaRef,
   ScheduledTask,
@@ -58,7 +71,23 @@ export interface AssistantMessage {
 }
 
 interface StoreState {
-  home?: Home;
+  /** Who is signed in. One account, many properties. */
+  account?: Account;
+  /** Every property this device knows about. */
+  properties: Home[];
+  /** Who may do what, on which property. */
+  memberships: Membership[];
+  /** Who held each property, and when. Append-only. */
+  ownership: OwnershipPeriod[];
+  /** Which property the app is currently showing. */
+  activePropertyId?: string;
+
+  /*
+   * Child records stay in flat arrays keyed by `homeId` rather than nested per
+   * property. They already carried a `homeId`, the arrays stay small, and one
+   * shape means one migration and one persistence format — nesting would mean
+   * every action learning which bucket to write into.
+   */
   components: HomeComponent[];
   events: TimelineEvent[];
   documents: DocumentRef[];
@@ -68,11 +97,31 @@ interface StoreState {
   assistantMessages: AssistantMessage[];
   hydrated: boolean;
 
-  /* Home */
-  createHome: (input: Omit<Home, 'id' | 'createdAt'>) => Home;
+  /* Account */
+  signIn: (account: Account) => void;
+  signOut: () => void;
+  updateAccount: (patch: Partial<Account>) => void;
+
+  /* Properties */
+  addProperty: (input: Omit<Home, 'id' | 'publicId' | 'createdAt'>) => Home;
   updateHome: (patch: Partial<Home>) => void;
+  setActiveProperty: (propertyId: string) => void;
+  removeProperty: (propertyId: string) => void;
   resetEverything: () => void;
   loadRecord: (record: HomeRecord, media?: MediaRef[]) => void;
+
+  /* Household */
+  addMember: (input: {
+    displayName: string;
+    email?: string;
+    role: Role;
+    expiresAt?: ISODateTime;
+  }) => Membership;
+  updateMemberRole: (membershipId: string, role: Role) => void;
+  removeMember: (membershipId: string) => void;
+
+  /* Ownership */
+  transferProperty: (params: { toName: string; on: ISODate }) => void;
 
   /* Components */
   addComponent: (input: Omit<HomeComponent, 'id' | 'homeId' | 'createdAt' | 'updatedAt'>) => HomeComponent;
@@ -86,8 +135,8 @@ interface StoreState {
   removeEvent: (id: string) => void;
 
   /* Documents & media */
-  addDocument: (input: Omit<DocumentRef, 'id' | 'addedAt'>) => DocumentRef;
-  addMedia: (input: Omit<MediaRef, 'id' | 'capturedAt'>) => MediaRef;
+  addDocument: (input: Omit<DocumentRef, 'id' | 'homeId' | 'addedAt'>) => DocumentRef;
+  addMedia: (input: Omit<MediaRef, 'id' | 'homeId' | 'capturedAt'>) => MediaRef;
 
   /* Maintenance */
   completeTask: (params: {
@@ -182,6 +231,10 @@ function rolled(usage: UsageState, asOf: ISODate): UsageState {
 }
 
 const EMPTY = {
+  properties: [] as Home[],
+  memberships: [] as Membership[],
+  ownership: [] as OwnershipPeriod[],
+  activePropertyId: undefined as string | undefined,
   components: [] as HomeComponent[],
   events: [] as TimelineEvent[],
   documents: [] as DocumentRef[],
@@ -194,40 +247,222 @@ const EMPTY = {
 export const useStore = create<StoreState>()(
   persist(
     (set, get) => ({
-      home: undefined,
+      account: undefined,
       ...EMPTY,
       hydrated: false,
 
-      createHome: (input) => {
-        const home: Home = { ...input, id: newId('home'), createdAt: nowISO() };
-        set({ home });
+      signIn: (account) => set({ account }),
+
+      /*
+       * Signing out clears the session, not the records. On a device-local
+       * build there is nowhere else for the record to live, and wiping a
+       * homeowner's entire history because they tapped "sign out" would be
+       * indefensible. Deleting data is `resetEverything`, which says so.
+       */
+      signOut: () => set({ account: undefined }),
+
+      updateAccount: (patch) =>
+        set((state) => (state.account ? { account: { ...state.account, ...patch } } : state)),
+
+      addProperty: (input) => {
+        const state = get();
+        const account = state.account;
+        const home: Home = {
+          ...input,
+          id: newId('home'),
+          publicId: generatePublicId(),
+          createdAt: nowISO(),
+        };
+        /*
+         * Adding a property creates two things beside it: the membership that
+         * makes it reachable, and the ownership period that starts its history.
+         * A property with neither is orphaned the moment it exists.
+         */
+        const membership: Membership | undefined = account
+          ? {
+              id: newId('mem'),
+              accountId: account.id,
+              propertyId: home.id,
+              role: 'owner',
+              displayName: account.displayName,
+              email: account.email,
+              addedAt: nowISO(),
+            }
+          : undefined;
+        const period: OwnershipPeriod = {
+          id: newId('own'),
+          propertyId: home.id,
+          accountId: account?.id,
+          ownerLabel: account?.displayName ?? 'Current owner',
+          startedOn: input.ownedSince ?? today(),
+        };
+        set((s) => ({
+          properties: [...s.properties, home],
+          memberships: membership ? [...s.memberships, membership] : s.memberships,
+          ownership: [...s.ownership, period],
+          activePropertyId: home.id,
+        }));
         return home;
       },
 
       updateHome: (patch) =>
-        set((state) => (state.home ? { home: { ...state.home, ...patch } } : state)),
+        set((state) => ({
+          properties: state.properties.map((p) =>
+            p.id === state.activePropertyId ? { ...p, ...patch } : p,
+          ),
+        })),
 
-      resetEverything: () => set({ home: undefined, ...EMPTY }),
+      setActiveProperty: (propertyId) =>
+        set((state) =>
+          state.properties.some((p) => p.id === propertyId)
+            ? { activePropertyId: propertyId, assistantMessages: [] }
+            : state,
+        ),
+
+      removeProperty: (propertyId) =>
+        set((state) => {
+          const remaining = state.properties.filter((p) => p.id !== propertyId);
+          return {
+            properties: remaining,
+            memberships: state.memberships.filter((m) => m.propertyId !== propertyId),
+            ownership: state.ownership.filter((o) => o.propertyId !== propertyId),
+            components: state.components.filter((c) => c.homeId !== propertyId),
+            events: state.events.filter((e) => e.homeId !== propertyId),
+            documents: state.documents.filter((d) => d.homeId !== propertyId),
+            completions: state.completions.filter((c) => c.homeId !== propertyId),
+            serviceRequests: state.serviceRequests.filter((r) => r.homeId !== propertyId),
+            media: state.media.filter((m) => m.homeId !== propertyId),
+            activePropertyId:
+              state.activePropertyId === propertyId ? remaining[0]?.id : state.activePropertyId,
+          };
+        }),
+
+      resetEverything: () => set({ account: undefined, ...EMPTY }),
 
       loadRecord: (record, media = []) =>
-        set({
-          home: record.home,
-          components: record.components,
-          events: record.events,
-          documents: record.documents,
-          completions: record.completions,
-          serviceRequests: record.serviceRequests,
-          media,
-          assistantMessages: [],
+        set((state) => {
+          const account =
+            state.account ??
+            (record.viewer
+              ? {
+                  id: record.viewer.accountId,
+                  displayName: record.viewer.displayName,
+                  phone: record.viewer.phone,
+                  createdAt: nowISO(),
+                }
+              : undefined);
+          const membership: Membership | undefined = account
+            ? {
+                id: newId('mem'),
+                accountId: account.id,
+                propertyId: record.home.id,
+                role: record.viewer?.role ?? 'owner',
+                displayName: account.displayName,
+                email: account.email,
+                addedAt: nowISO(),
+              }
+            : undefined;
+          return {
+            account,
+            properties: [...state.properties.filter((p) => p.id !== record.home.id), record.home],
+            memberships: [
+              ...state.memberships.filter((m) => m.propertyId !== record.home.id),
+              ...(membership ? [membership] : []),
+            ],
+            ownership: [
+              ...state.ownership.filter((o) => o.propertyId !== record.home.id),
+              {
+                id: newId('own'),
+                propertyId: record.home.id,
+                accountId: account?.id,
+                ownerLabel: account?.displayName ?? 'Current owner',
+                startedOn: record.home.ownedSince ?? today(),
+              },
+            ],
+            activePropertyId: record.home.id,
+            components: [...state.components.filter((c) => c.homeId !== record.home.id), ...record.components],
+            events: [...state.events.filter((e) => e.homeId !== record.home.id), ...record.events],
+            documents: [...state.documents.filter((d) => d.homeId !== record.home.id), ...record.documents],
+            completions: [...state.completions.filter((c) => c.homeId !== record.home.id), ...record.completions],
+            serviceRequests: [
+              ...state.serviceRequests.filter((r) => r.homeId !== record.home.id),
+              ...record.serviceRequests,
+            ],
+            media: [...state.media.filter((m) => m.homeId !== record.home.id), ...media],
+            assistantMessages: [],
+          };
+        }),
+
+      addMember: (input) => {
+        const state = get();
+        const propertyId = state.activePropertyId;
+        if (!propertyId) throw new Error('Select a home before adding someone to it.');
+        const membership: Membership = {
+          id: newId('mem'),
+          // Until there is a server to resolve an invitation, the person exists
+          // only as a row on this property. `pending` says so honestly.
+          accountId: newId('acct'),
+          propertyId,
+          role: input.role,
+          displayName: input.displayName,
+          email: input.email,
+          addedAt: nowISO(),
+          expiresAt: input.expiresAt,
+          pending: true,
+        };
+        set((s) => ({ memberships: [...s.memberships, membership] }));
+        return membership;
+      },
+
+      updateMemberRole: (membershipId, role) =>
+        set((state) => ({
+          memberships: state.memberships.map((m) => (m.id === membershipId ? { ...m, role } : m)),
+        })),
+
+      removeMember: (membershipId) =>
+        set((state) =>
+          canRemoveMember(state.memberships, membershipId).allowed
+            ? { memberships: state.memberships.filter((m) => m.id !== membershipId) }
+            : state,
+        ),
+
+      /*
+       * A sale. The property object is untouched — same id, same public id, same
+       * equipment and history. What changes is who can reach it and whose
+       * ownership period is open. Nothing is copied between accounts, which is
+       * the entire reason the record can outlive an owner.
+       */
+      transferProperty: ({ toName, on }) =>
+        set((state) => {
+          const propertyId = state.activePropertyId;
+          if (!propertyId) return state;
+          return {
+            ownership: [
+              ...state.ownership.map((o) =>
+                o.propertyId === propertyId && !o.endedOn ? { ...o, endedOn: on } : o,
+              ),
+              {
+                id: newId('own'),
+                propertyId,
+                ownerLabel: toName,
+                startedOn: on,
+              },
+            ],
+            // The seller's access ends with their ownership. On a device-local
+            // build that means the property leaves this device.
+            memberships: state.memberships.filter((m) => m.propertyId !== propertyId),
+            properties: state.properties.filter((p) => p.id !== propertyId),
+            activePropertyId: state.properties.find((p) => p.id !== propertyId)?.id,
+          };
         }),
 
       addComponent: (input) => {
-        const home = get().home;
-        if (!home) throw new Error('Create a home before adding equipment.');
+        const homeId = get().activePropertyId;
+        if (!homeId) throw new Error('Select a home before adding equipment.');
         const component: HomeComponent = {
           ...input,
           id: newId('cmp'),
-          homeId: home.id,
+          homeId,
           createdAt: nowISO(),
           updatedAt: nowISO(),
         };
@@ -258,12 +493,12 @@ export const useStore = create<StoreState>()(
         })),
 
       addEvent: (input) => {
-        const home = get().home;
-        if (!home) throw new Error('Create a home before adding history.');
+        const homeId = get().activePropertyId;
+        if (!homeId) throw new Error('Select a home before adding history.');
         const event: TimelineEvent = {
           ...input,
           id: newId('evt'),
-          homeId: home.id,
+          homeId,
           createdAt: nowISO(),
         };
         set((state) => ({ events: [...state.events, event] }));
@@ -276,20 +511,24 @@ export const useStore = create<StoreState>()(
       removeEvent: (id) => set((state) => ({ events: state.events.filter((e) => e.id !== id) })),
 
       addDocument: (input) => {
-        const doc: DocumentRef = { ...input, id: newId('doc'), addedAt: nowISO() };
+        const homeId = get().activePropertyId;
+        if (!homeId) throw new Error('Select a home before filing a document.');
+        const doc: DocumentRef = { ...input, id: newId('doc'), homeId, addedAt: nowISO() };
         set((state) => ({ documents: [...state.documents, doc] }));
         return doc;
       },
 
       addMedia: (input) => {
-        const media: MediaRef = { ...input, id: newId('med'), capturedAt: nowISO() };
+        const homeId = get().activePropertyId;
+        if (!homeId) throw new Error('Select a home before attaching a photo.');
+        const media: MediaRef = { ...input, id: newId('med'), homeId, capturedAt: nowISO() };
         set((state) => ({ media: [...state.media, media] }));
         return media;
       },
 
       completeTask: ({ task, completedOn, performedBy, costCents, vendor, notes, addToTimeline }) => {
-        const home = get().home;
-        if (!home) return;
+        const homeId = get().activePropertyId;
+        if (!homeId) return;
         const completionId = newId('cpl');
         const shouldLog = addToTimeline ?? (costCents !== undefined || vendor !== undefined);
 
@@ -297,7 +536,7 @@ export const useStore = create<StoreState>()(
         if (shouldLog) {
           const event: TimelineEvent = {
             id: newId('evt'),
-            homeId: home.id,
+            homeId,
             componentId: task.componentId,
             date: completedOn,
             type: 'service',
@@ -317,7 +556,7 @@ export const useStore = create<StoreState>()(
 
         const completion: MaintenanceCompletion = {
           id: completionId,
-          homeId: home.id,
+          homeId,
           templateId: task.templateId,
           componentId: task.componentId,
             completedOn,
@@ -351,20 +590,13 @@ export const useStore = create<StoreState>()(
         providerId,
       }) => {
         const state = get();
-        const home = state.home;
-        if (!home) throw new Error('Create a home before requesting service.');
-        const record: HomeRecord = {
-          home,
-          components: state.components,
-          events: state.events,
-          documents: state.documents,
-          completions: state.completions,
-          serviceRequests: state.serviceRequests,
-        };
+        const record = selectRecord(state);
+        if (!record) throw new Error('Select a home before requesting service.');
+        const homeId = record.home.id;
         const component = componentId ? state.components.find((c) => c.id === componentId) : undefined;
         const request: ServiceRequest = {
           id: newId('req'),
-          homeId: home.id,
+          homeId,
           componentId,
           taskKey,
           title,
@@ -453,14 +685,14 @@ export const useStore = create<StoreState>()(
       }) => {
         const state = get();
         const request = state.serviceRequests.find((r) => r.id === id);
-        const home = state.home;
-        if (!request || !home) return;
+        const homeId = state.activePropertyId;
+        if (!request || !homeId) return;
 
         // The contractor's completed work becomes a permanent part of the record —
         // this is the loop that keeps the history growing without owner data entry.
         const event: TimelineEvent = {
           id: newId('evt'),
-          homeId: home.id,
+          homeId,
           componentId: request.componentId,
           date: completedOn,
           type: 'repair',
@@ -533,10 +765,15 @@ export const useStore = create<StoreState>()(
     }),
     {
       name: 'dwella-record-v1',
+      version: 2,
       storage: createJSONStorage(() => AsyncStorage),
       // Conversation scrollback is not part of the home's permanent record.
       partialize: (state) => ({
-        home: state.home,
+        account: state.account,
+        properties: state.properties,
+        memberships: state.memberships,
+        ownership: state.ownership,
+        activePropertyId: state.activePropertyId,
         components: state.components,
         events: state.events,
         documents: state.documents,
@@ -546,6 +783,69 @@ export const useStore = create<StoreState>()(
         subscription: state.subscription,
         usage: state.usage,
       }),
+      /**
+       * v1 → v2: one home becomes one account with one property.
+       *
+       * The old shape held a single `home` and assumed everything belonged to
+       * it. Nothing here is thrown away: the property keeps its id, so every
+       * child record's `homeId` still points at it, and it gains the public id,
+       * type, membership, and ownership period the new model requires. Someone
+       * who had a house before this change opens the app and finds the same
+       * house, now switchable.
+       */
+      migrate: (persisted, version) => {
+        if (version >= 2) return persisted as never;
+        const old = persisted as {
+          home?: Home & { ownerName?: string; contactPhone?: string };
+          documents?: DocumentRef[];
+          media?: MediaRef[];
+          [key: string]: unknown;
+        };
+        if (!old?.home) return { ...old, ...EMPTY } as never;
+
+        const account: Account = {
+          id: newId('acct'),
+          displayName: old.home.ownerName?.trim() || 'You',
+          phone: old.home.contactPhone,
+          createdAt: nowISO(),
+        };
+        const { ownerName: _name, contactPhone: _phone, ...rest } = old.home;
+        const property: Home = {
+          ...rest,
+          publicId: generatePublicId(),
+          propertyType: 'primary',
+        };
+        return {
+          ...old,
+          home: undefined,
+          account,
+          properties: [property],
+          activePropertyId: property.id,
+          memberships: [
+            {
+              id: newId('mem'),
+              accountId: account.id,
+              propertyId: property.id,
+              role: 'owner',
+              displayName: account.displayName,
+              addedAt: nowISO(),
+            },
+          ],
+          ownership: [
+            {
+              id: newId('own'),
+              propertyId: property.id,
+              accountId: account.id,
+              ownerLabel: account.displayName,
+              startedOn: property.ownedSince ?? today(),
+            },
+          ],
+          // Documents and media predate being property-scoped; they can only
+          // have belonged to the one home that existed.
+          documents: (old.documents ?? []).map((d) => ({ ...d, homeId: property.id })),
+          media: (old.media ?? []).map((m) => ({ ...m, homeId: property.id })),
+        } as never;
+      },
       onRehydrateStorage: () => (state) => {
         if (state) state.hydrated = true;
       },
@@ -560,15 +860,31 @@ export const useStore = create<StoreState>()(
  * `useStore` — see `useHomeRecord` for why.
  */
 export function selectRecord(state: StoreState): HomeRecord | undefined {
-  if (!state.home) return undefined;
+  const home = state.properties.find((p) => p.id === state.activePropertyId);
+  if (!home) return undefined;
+  const scoped = <T extends { homeId: string }>(rows: T[]) => rows.filter((r) => r.homeId === home.id);
   return {
-    home: state.home,
-    components: state.components,
-    events: state.events,
-    documents: state.documents,
-    completions: state.completions,
-    serviceRequests: state.serviceRequests,
+    home,
+    viewer: selectViewer(state, home.id),
+    components: scoped(state.components),
+    events: scoped(state.events),
+    documents: scoped(state.documents),
+    completions: scoped(state.completions),
+    serviceRequests: scoped(state.serviceRequests),
   };
+}
+
+/** Who is looking, and what they may do here. Undefined when nobody is signed in. */
+function selectViewer(state: StoreState, propertyId: string): HomeRecord['viewer'] {
+  const account = state.account;
+  if (!account) return undefined;
+  const { role } = permissionsFor(state.memberships, {
+    accountId: account.id,
+    propertyId,
+    now: nowISO(),
+  });
+  if (!role) return undefined;
+  return { accountId: account.id, displayName: account.displayName, phone: account.phone, role };
 }
 
 /**
@@ -585,17 +901,107 @@ export function selectRecord(state: StoreState): HomeRecord | undefined {
  * identity each render would recompute all three on every keystroke.
  */
 export function useHomeRecord(): HomeRecord | undefined {
-  const home = useStore((s) => s.home);
+  const account = useStore((s) => s.account);
+  const properties = useStore((s) => s.properties);
+  const memberships = useStore((s) => s.memberships);
+  const activePropertyId = useStore((s) => s.activePropertyId);
   const components = useStore((s) => s.components);
   const events = useStore((s) => s.events);
   const documents = useStore((s) => s.documents);
   const completions = useStore((s) => s.completions);
   const serviceRequests = useStore((s) => s.serviceRequests);
 
+  return useMemo(() => {
+    const home = properties.find((p) => p.id === activePropertyId);
+    if (!home) return undefined;
+    const scoped = <T extends { homeId: string }>(rows: T[]) => rows.filter((r) => r.homeId === home.id);
+    const role = account
+      ? permissionsFor(memberships, { accountId: account.id, propertyId: home.id, now: nowISO() }).role
+      : undefined;
+    return {
+      home,
+      viewer:
+        account && role
+          ? { accountId: account.id, displayName: account.displayName, phone: account.phone, role }
+          : undefined,
+      components: scoped(components),
+      events: scoped(events),
+      documents: scoped(documents),
+      completions: scoped(completions),
+      serviceRequests: scoped(serviceRequests),
+    };
+  }, [
+    account,
+    properties,
+    memberships,
+    activePropertyId,
+    components,
+    events,
+    documents,
+    completions,
+    serviceRequests,
+  ]);
+}
+
+/**
+ * Every property this device holds, with the viewer's role on each.
+ *
+ * Feeds the home switcher. Sorted so the active one is findable and the rest are
+ * in the order they were added, which is the order somebody thinks of them in.
+ */
+export function useProperties(): { home: Home; role?: Role; isActive: boolean }[] {
+  const account = useStore((s) => s.account);
+  const properties = useStore((s) => s.properties);
+  const memberships = useStore((s) => s.memberships);
+  const activePropertyId = useStore((s) => s.activePropertyId);
+
   return useMemo(
     () =>
-      home ? { home, components, events, documents, completions, serviceRequests } : undefined,
-    [home, components, events, documents, completions, serviceRequests],
+      properties.map((home) => ({
+        home,
+        role: account
+          ? permissionsFor(memberships, { accountId: account.id, propertyId: home.id, now: nowISO() })
+              .role
+          : undefined,
+        isActive: home.id === activePropertyId,
+      })),
+    [properties, memberships, account, activePropertyId],
+  );
+}
+
+/** What the signed-in viewer may do on the active property. */
+export function usePermissions(): { role?: Role; can: (permission: Permission) => boolean } {
+  const account = useStore((s) => s.account);
+  const memberships = useStore((s) => s.memberships);
+  const activePropertyId = useStore((s) => s.activePropertyId);
+
+  return useMemo(() => {
+    if (!account || !activePropertyId) return { can: () => false };
+    return permissionsFor(memberships, {
+      accountId: account.id,
+      propertyId: activePropertyId,
+      now: nowISO(),
+    });
+  }, [account, memberships, activePropertyId]);
+}
+
+/** Everyone with access to the active property. */
+export function useHousehold(): Membership[] {
+  const memberships = useStore((s) => s.memberships);
+  const activePropertyId = useStore((s) => s.activePropertyId);
+  return useMemo(
+    () => (activePropertyId ? householdFor(memberships, activePropertyId) : []),
+    [memberships, activePropertyId],
+  );
+}
+
+/** The ownership history of the active property, oldest first. */
+export function useOwnership(): OwnershipPeriod[] {
+  const ownership = useStore((s) => s.ownership);
+  const activePropertyId = useStore((s) => s.activePropertyId);
+  return useMemo(
+    () => (activePropertyId ? ownershipHistory(ownership, activePropertyId) : []),
+    [ownership, activePropertyId],
   );
 }
 

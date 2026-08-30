@@ -37,9 +37,18 @@ describe('service request packet — contact details', () => {
 
   it('omits contact lines entirely rather than printing empty labels', () => {
     const { record } = buildSampleRecord();
+    // Address comes from the property; name and number come from the viewer.
+    // Both have to be absent for the packet to print no contact block at all.
     const bare = {
       ...record,
-      home: { ...record.home, addressLine1: undefined, city: undefined, state: undefined, postalCode: undefined, ownerName: undefined, contactPhone: undefined },
+      viewer: undefined,
+      home: {
+        ...record.home,
+        addressLine1: undefined,
+        city: undefined,
+        state: undefined,
+        postalCode: undefined,
+      },
     };
     const built = buildServiceRequestPacket({ record: bare, problem: 'Something is leaking.', photoCount: 0 });
     expect(built.contact.address).toBeUndefined();

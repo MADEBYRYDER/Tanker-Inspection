@@ -20,7 +20,7 @@ import { addDays, daysBetween } from './dates';
  * about what someone paid for is how you lose a subscriber in one tap.
  */
 
-export type Plan = 'free' | 'plus';
+export type Plan = 'free' | 'plus' | 'portfolio';
 
 /** Features that are either on or off for a plan. */
 export type FeatureKey =
@@ -60,6 +60,16 @@ export interface PlanDefinition {
   name: string;
   features: Record<FeatureKey, boolean>;
   allowances: Record<MeteredKey, Allowance>;
+  /**
+   * Properties covered by the base price. Beyond this, each one is billed at
+   * `EXTRA_HOME_PRICE_CENTS` — because a landlord with thirty-seven rentals
+   * getting the same $7.99 as a single homeowner is not a pricing model, and
+   * because thirty-seven records genuinely cost thirty-seven times as much to
+   * hold, scan against, and forecast.
+   */
+  includedHomes: number;
+  /** Hard ceiling. `undefined` means as many as they want to pay for. */
+  maxHomes?: number;
 }
 
 /*
@@ -70,6 +80,19 @@ export interface PlanDefinition {
  * house — twenty is enough to hold the paperwork that matters on a starter
  * record without becoming the free tier's filing cabinet.
  */
+const ALL_FEATURES_ON: Record<FeatureKey, boolean> = {
+  forecast: true,
+  replacement_planning: true,
+  warranty_intelligence: true,
+  health_detail: true,
+  cost_insights: true,
+  seasonal_personalized: true,
+  diy_personalized: true,
+  export_complete: true,
+  family_sharing: true,
+  priority_service: true,
+};
+
 export const PLANS: Record<Plan, PlanDefinition> = {
   free: {
     key: 'free',
@@ -91,22 +114,13 @@ export const PLANS: Record<Plan, PlanDefinition> = {
       assistant: { limit: 5, period: 'monthly' },
       problem_scan: { limit: 2, period: 'monthly' },
     },
+    includedHomes: 1,
+    maxHomes: 1,
   },
   plus: {
     key: 'plus',
     name: 'Dwella+',
-    features: {
-      forecast: true,
-      replacement_planning: true,
-      warranty_intelligence: true,
-      health_detail: true,
-      cost_insights: true,
-      seasonal_personalized: true,
-      diy_personalized: true,
-      export_complete: true,
-      family_sharing: true,
-      priority_service: true,
-    },
+    features: { ...ALL_FEATURES_ON },
     allowances: {
       documents: { period: 'total' },
       /*
@@ -118,6 +132,25 @@ export const PLANS: Record<Plan, PlanDefinition> = {
       assistant: { limit: 400, period: 'monthly' },
       problem_scan: { limit: 40, period: 'monthly' },
     },
+    includedHomes: 1,
+  },
+  /*
+   * For landlords and property managers. Someone with six rentals has a harder
+   * version of the same problem a homeowner has — which HVAC is at which
+   * address, which lease property needs filters, what Oak Street cost last year
+   * — and the architecture already answers it. The price is per-home rather
+   * than a flat fee so it scales with what they actually hold.
+   */
+  portfolio: {
+    key: 'portfolio',
+    name: 'Dwella Portfolio',
+    features: { ...ALL_FEATURES_ON },
+    allowances: {
+      documents: { period: 'total' },
+      assistant: { limit: 2_000, period: 'monthly' },
+      problem_scan: { limit: 200, period: 'monthly' },
+    },
+    includedHomes: 5,
   },
 };
 
@@ -243,6 +276,46 @@ export interface PriceOption {
   /** What it works out to per month, for honest comparison. */
   perMonthCents: number;
   savingPercent?: number;
+}
+
+/** Each property past what the plan includes. */
+export const EXTRA_HOME_PRICE_CENTS = 399;
+
+export interface HomeAllowance {
+  count: number;
+  included: number;
+  limit?: number;
+  canAddAnother: boolean;
+  /** Properties currently being paid for beyond the base price. */
+  billableExtras: number;
+  extraPriceCents: number;
+  extraPriceLabel: string;
+  /** What the subscription actually costs this month, given the property count. */
+  monthlyTotalCents: number;
+}
+
+/**
+ * How many properties this plan covers, and what the next one costs.
+ *
+ * Free is capped at one rather than charged for extras: someone who has not paid
+ * has no billing relationship to extend, and the honest answer is "this needs a
+ * plan" rather than a charge they never agreed to.
+ */
+export function homeAllowance(plan: Plan, count: number): HomeAllowance {
+  const definition = PLANS[plan];
+  const base = PRICES.find((p) => p.id === 'monthly')?.priceCents ?? 0;
+  const billableExtras = Math.max(0, count - definition.includedHomes);
+  return {
+    count,
+    included: definition.includedHomes,
+    limit: definition.maxHomes,
+    canAddAnother: definition.maxHomes === undefined || count < definition.maxHomes,
+    billableExtras,
+    extraPriceCents: EXTRA_HOME_PRICE_CENTS,
+    extraPriceLabel: `$${(EXTRA_HOME_PRICE_CENTS / 100).toFixed(2)}`,
+    monthlyTotalCents:
+      plan === 'free' ? 0 : base + billableExtras * EXTRA_HOME_PRICE_CENTS,
+  };
 }
 
 export const PRICES: PriceOption[] = [

@@ -33,6 +33,60 @@ Transfer Record ← Sell Home ← Improve History ← Record Completed Work
 
 ---
 
+## Architecture: accounts, properties, memberships
+
+**A person and a place are separate objects, and neither owns the other.** This
+is non-negotiable and is built in from the first commit, because retrofitting it
+means migrating every record in the product.
+
+```
+Account ──< Membership >── Property ──< Assets, Tasks, Documents, Warranties,
+ (person)     (+ role)      (place)      Timeline, Expenses, Service requests
+                                │
+                                └──< Ownership periods (append-only)
+```
+
+Three things fall out of that separation, none of which is possible if a
+property is a field on a user:
+
+- **One account, many properties.** A residence, a beach house, three rentals —
+  each with its own entirely separate record. Switch from the address under the
+  greeting on the dashboard, or from My Homes.
+- **One property, many accounts.** Both owners, a property manager, a parent, a
+  contractor with a job to do. Access is per property: someone added to your
+  rental sees nothing about your house.
+- **The record survives a sale.** Nothing is copied between accounts. The
+  property row is untouched — same id, same public id (`DW-829173`), same
+  equipment and history. The seller's ownership period gets an end date, the
+  buyer's opens, and the memberships are replaced. That is the whole mechanism
+  behind a Carfax for a house: the history belongs to the building.
+
+### Roles
+
+| Role | What they can do |
+|---|---|
+| **Owner** | Everything, including transferring or deleting the property. |
+| **Household admin** | Everything day to day — home, equipment, tasks, services, and who else has access. Not transfer or delete. |
+| **Manager** | Runs maintenance and services. No costs, no members, no ownership. |
+| **Member** | Sees the home and its costs, adds records, completes tasks. |
+| **Viewer** | Read-only, and not the costs. |
+| **Professional** | Temporary, expiring access for a contractor or inspector: read the record, add the work they did. |
+
+Two lines worth defending: an admin runs the house but cannot sell it, and a
+manager does the work without seeing what the owner paid for the kitchen. The
+last owner of a property cannot be removed or demoted — a property with no owner
+is unreachable and unsellable.
+
+Roles are enforced **server-side**, not just in the UI. `permissionsFor()` in
+`src/core/account.ts` is the single source of truth and is imported by both the
+app and the server, so the two cannot disagree about who may do what.
+
+### Property types
+
+Primary residence · Second/vacation home · Rental · Condo/townhome · Under
+renovation. V1 does not branch behaviour on these; the data model carries the
+distinction now because collecting it later means re-interviewing every user.
+
 ## Dwella and Dwella+
 
 **Dwella remembers your home. Dwella+ knows what's coming.**
@@ -61,11 +115,19 @@ Dwella+ ($7.99/month, or $69.99/year — 27% less) is the forward-looking half:
 | DIY guides | Standard steps | Your sizes, model, age, and history |
 | Record export | Summary | Complete, with work history and documents |
 | Priority service requests | — | ✓ |
-| Family sharing | — | Coming |
+| Family sharing | — | Household sharing with roles |
+| Homes included | 1 | 1, then $3.99/mo each |
 
 \* Questions answered straight from the record — ages, dates, costs, warranties,
 filter sizes, what's overdue — **never** count against the allowance. They are a
 local lookup against the owner's own data and cost nothing to serve.
+
+**Dwella Portfolio** covers five properties before the per-home charge starts,
+for landlords and property managers. Someone with six rentals has a harder
+version of the same problem a homeowner has — which HVAC is at which address,
+which lease property needs filters, what Oak Street cost last year — and the
+architecture already answers it. Per-home pricing rather than a flat fee, because
+thirty-seven records cost thirty-seven times as much to hold and forecast against.
 
 A 30-day trial is offered once, at the moment the guided home scan completes —
 the first point at which Dwella knows enough about the house for a forecast to say

@@ -12,7 +12,7 @@ import { useTheme } from '../src/ui/theme';
 export default function Index() {
   const theme = useTheme();
   const hydrated = useStore((s) => s.hydrated);
-  const home = useStore((s) => s.home);
+  const hasProperty = useStore((s) => s.activePropertyId !== undefined);
 
   if (!hydrated) {
     return (
@@ -22,5 +22,5 @@ export default function Index() {
     );
   }
 
-  return <Redirect href={home ? '/(tabs)' : '/onboarding'} />;
+  return <Redirect href={hasProperty ? '/(tabs)' : '/onboarding'} />;
 }
