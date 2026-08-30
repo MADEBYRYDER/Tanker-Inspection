@@ -21,13 +21,24 @@ export function DwellaMark({
   arc,
 }: {
   size?: number;
-  /** Defaults to brand navy; pass the paper tone when placing it on the hero. */
+  /**
+   * Overrides for placing the mark on a ground the theme does not know about —
+   * the navy hero, which is dark even in light mode. Left unset, the mark
+   * follows the theme.
+   */
   house?: string;
   arc?: string;
 }) {
   const theme = useTheme();
-  const stroke = house ?? theme.brandNavy;
-  const bowl = arc ?? theme.brandSage;
+  /*
+   * Brand navy on a navy ground is invisible, which is exactly what happened on
+   * the dark onboarding screen. The navy is the mark's colour on paper, not its
+   * colour everywhere: in dark mode the house takes the theme's text tone and
+   * the arc lifts to the lighter sage, so the logo keeps its relationship to
+   * the page rather than to a hex value.
+   */
+  const stroke = house ?? (theme.dark ? theme.text : theme.brandNavy);
+  const bowl = arc ?? (theme.dark ? theme.brandSageLight : theme.brandSage);
 
   return (
     <Svg width={size} height={size} viewBox="0 0 64 64" fill="none">
@@ -83,8 +94,15 @@ export function DwellaLockup({
 }) {
   const theme = useTheme();
   const scale = size === 'lg' ? 1.5 : size === 'sm' ? 0.78 : 1;
-  const wordColor = onDark ? '#FFFFFF' : theme.brandNavy;
-  const taglineColor = onDark ? 'rgba(255,255,255,0.62)' : theme.brandSage;
+  // `onDark` is for a dark panel inside a light theme; the theme's own dark mode
+  // is handled by the same tones the rest of the page uses.
+  const light = onDark || theme.dark;
+  const wordColor = onDark ? '#FFFFFF' : theme.text;
+  const taglineColor = light
+    ? onDark
+      ? 'rgba(255,255,255,0.62)'
+      : theme.brandSageLight
+    : theme.brandSage;
 
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 * scale }}>

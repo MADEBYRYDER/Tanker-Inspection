@@ -10,6 +10,7 @@ import {
   BodyStrong,
   Button,
   Card,
+  Chip,
   Tertiary,
   Heading,
   KeyValue,
@@ -20,6 +21,7 @@ import {
   SectionTitle,
   Title,
 } from '../src/ui/components';
+import { THEME_OPTIONS, useAppearance } from '../src/state/appearance';
 import { useDialog } from '../src/ui/dialog';
 import { spacing, useTheme } from '../src/ui/theme';
 
@@ -30,6 +32,8 @@ export default function Settings() {
   const reset = useStore((s) => s.resetEverything);
   const loadRecord = useStore((s) => s.loadRecord);
   const { confirm } = useDialog();
+  const preference = useAppearance((a) => a.preference);
+  const setPreference = useAppearance((a) => a.setPreference);
 
   const [health, setHealth] = useState<{ ok: boolean; model?: string; detail?: string }>();
 
@@ -73,6 +77,30 @@ export default function Settings() {
   return (
     <Screen>
       <Title>Settings</Title>
+
+      {/*
+        Appearance first, because it is the only setting on this screen that
+        changes something the moment it is touched — everything below is about
+        the record rather than about the app.
+      */}
+      <Card>
+        <SectionTitle title="Appearance" />
+        <Row gap={spacing.sm} wrap>
+          {THEME_OPTIONS.map((option) => (
+            <Chip
+              key={option.key}
+              label={option.label}
+              selected={preference === option.key}
+              onPress={() => setPreference(option.key)}
+            />
+          ))}
+        </Row>
+        <Tertiary>
+          {preference === 'system'
+            ? 'Following your phone, so Dwella turns dark when it does.'
+            : `Always ${preference}, whatever your phone is set to.`}
+        </Tertiary>
+      </Card>
 
       {record ? (
         <Card>

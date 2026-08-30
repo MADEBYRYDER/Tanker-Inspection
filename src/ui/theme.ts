@@ -1,4 +1,5 @@
 import { Platform, useColorScheme } from 'react-native';
+import { useThemePreference } from '../state/appearance';
 import type { HealthStatus, TaskUrgency } from '../core/types';
 
 /**
@@ -151,8 +152,19 @@ const dark: Theme = {
   scanGreen: '#63805B',
 };
 
+/**
+ * The active theme.
+ *
+ * The owner's choice wins over the OS; `system` defers to it. Resolving here
+ * rather than at each call site means the switch on the settings screen reaches
+ * every themed component in the app without any of them knowing a preference
+ * exists.
+ */
 export function useTheme(): Theme {
-  return useColorScheme() === 'dark' ? dark : light;
+  const system = useColorScheme();
+  const preference = useThemePreference();
+  const resolved = preference === 'system' ? system : preference;
+  return resolved === 'dark' ? dark : light;
 }
 
 export const spacing = {
