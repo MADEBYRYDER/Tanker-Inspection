@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { Linking, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { formatDate, today } from '../src/core/dates';
 import { COMPARISON, PRICES, TRIAL_DAYS } from '../src/core/entitlements';
 import { computeForecast, likelyReplacements } from '../src/core/engine/forecast';
@@ -25,6 +25,7 @@ import {
 } from '../src/ui/components';
 import { Touchable } from '../src/ui/motion';
 import { useDialog } from '../src/ui/dialog';
+import { openExternal } from '../src/ui/platform';
 import { PlusMark } from '../src/ui/plus';
 import { radius, spacing, tabular, type, useTheme } from '../src/ui/theme';
 
@@ -86,6 +87,17 @@ export default function Plus() {
   const start = () => {
     beginTrial();
     router.back();
+  };
+
+  /*
+   * A blocked popup resolves as success through `Linking.openURL`, so a reader
+   * who taps Terms inside an embedded frame gets nothing and is told nothing.
+   * `openExternal` reports it, and the address goes in the dialog so the page is
+   * still reachable by hand.
+   */
+  const openLegal = async (url: string, label: string) => {
+    if (await openExternal(url)) return;
+    void alert(`${label} could not open`, `Your browser blocked the new tab. The page is at ${url}`);
   };
 
   /*
@@ -386,10 +398,10 @@ export default function Plus() {
 
       <Enter index={5}>
         <Row justify="center" gap={spacing.lg}>
-          <Touchable onPress={() => void Linking.openURL('https://dwella.app/terms')}>
+          <Touchable onPress={() => void openLegal('https://dwella.app/terms', 'Terms')}>
             <Tertiary>Terms</Tertiary>
           </Touchable>
-          <Touchable onPress={() => void Linking.openURL('https://dwella.app/privacy')}>
+          <Touchable onPress={() => void openLegal('https://dwella.app/privacy', 'Privacy')}>
             <Tertiary>Privacy</Tertiary>
           </Touchable>
         </Row>

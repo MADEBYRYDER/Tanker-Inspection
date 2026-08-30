@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
-import { Linking, Platform, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
 import { GatewayNotConfiguredError, isGatewayConfigured, triageProblem } from '../../src/ai/client';
 import type { ProblemTriage } from '../../src/ai/schemas';
 import { today } from '../../src/core/dates';
@@ -31,6 +31,7 @@ import {
   Title,
   Touchable,
 } from '../../src/ui/components';
+import { callNumber, canPlaceCalls } from '../../src/ui/platform';
 import { AllowanceRow, AllowanceSpent } from '../../src/ui/plus';
 import { radius, spacing, toneFor, type, useTheme, type StatusKey } from '../../src/ui/theme';
 
@@ -86,6 +87,8 @@ export default function ProblemScanner() {
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<ProblemTriage | undefined>();
   const [error, setError] = useState<string | undefined>();
+  // Whether "tap to call" is a promise this platform can keep. See ui/platform.
+  const dialable = canPlaceCalls();
 
   const scans = usage('problem_scan');
 
@@ -142,11 +145,11 @@ export default function ProblemScanner() {
             <Text style={[type.small, { color: tone.fg }]}>{result.urgencyReason}</Text>
             {result.urgency === 'emergency' ? (
               <Button
-                label="Call emergency services"
+                label={dialable ? 'Call emergency services' : 'Call emergency services — 911'}
                 icon="call-outline"
                 tone={theme.red}
                 full
-                onPress={() => void Linking.openURL(Platform.OS === 'ios' ? 'tel:911' : 'tel:911')}
+                onPress={() => void callNumber('911')}
               />
             ) : null}
           </Card>
@@ -289,7 +292,7 @@ export default function ProblemScanner() {
           should not have to scroll to be told to leave. */}
       <Enter>
         <Touchable
-          onPress={() => void Linking.openURL('tel:911')}
+          onPress={() => void callNumber('911')}
           haptic="medium"
           style={{
             backgroundColor: theme.redSoft,
@@ -307,8 +310,17 @@ export default function ProblemScanner() {
                 carbon monoxide alarm — leave, then call emergency services or your utility. Don't
                 wait for an analysis.
               </Text>
+              {/*
+                On a phone this dials. On a desktop browser a `tel:` navigation
+                is accepted and silently discarded, so the label there is the
+                number itself rather than a promise to dial it — on this screen
+                of all screens, a control that quietly does nothing is the one
+                failure that must not happen.
+              */}
               <Row gap={4}>
-                <Text style={[type.smallStrong, { color: theme.red }]}>Tap to call 911</Text>
+                <Text style={[type.smallStrong, { color: theme.red }]}>
+                  {dialable ? 'Tap to call 911' : 'Call 911'}
+                </Text>
                 <Ionicons name="call-outline" size={13} color={theme.red} />
               </Row>
             </View>

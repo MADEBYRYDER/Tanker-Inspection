@@ -1,6 +1,6 @@
 import { useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { Share, View } from 'react-native';
+import { View } from 'react-native';
 import { isISODate, today } from '../../src/core/dates';
 import { buildHomeRecordReport, renderReportText } from '../../src/core/engine/transfer';
 import { formatMoney } from '../../src/core/money';
@@ -26,6 +26,7 @@ import {
   Title,
 } from '../../src/ui/components';
 import { useDialog } from '../../src/ui/dialog';
+import { shareText } from '../../src/ui/platform';
 import { PlusGate } from '../../src/ui/plus';
 import { spacing, useTheme } from '../../src/ui/theme';
 
@@ -102,16 +103,24 @@ export default function HomeRecordScreen() {
   }
 
   const share = async () => {
-    try {
-      // Share exactly what is on screen. Rendering the full report here while the
-      // screen shows a summary would make the difference between the tiers a
-      // cosmetic one, and a paywall that is only cosmetic is a lie either way.
-      await Share.share({
-        message: renderReportText({ ...report, sections: visibleSections }),
-        title: report.title,
-      });
-    } catch {
-      void alert('Could not share', 'Sharing is not available on this device.');
+    // Share exactly what is on screen. Rendering the full report here while the
+    // screen shows a summary would make the difference between the tiers a
+    // cosmetic one, and a paywall that is only cosmetic is a lie either way.
+    const outcome = await shareText({
+      title: report.title,
+      message: renderReportText({ ...report, sections: visibleSections }),
+    });
+
+    // A record that cannot leave the app is not a record. Desktop browsers have
+    // no share sheet, so the clipboard is the path that works there, and saying
+    // so is better than a silent success.
+    if (outcome.ok && outcome.via === 'clipboard') {
+      void alert('Copied', 'The record is on your clipboard — paste it into an email, a document, or a message.');
+    } else if (!outcome.ok) {
+      void alert(
+        'Could not share',
+        'This browser will not let the app share or copy. Opening Dwella in its own tab, rather than embedded in another page, usually fixes it.',
+      );
     }
   };
 
