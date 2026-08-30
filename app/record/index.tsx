@@ -1,6 +1,6 @@
 import { useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { Alert, Share, View } from 'react-native';
+import { Share, View } from 'react-native';
 import { isISODate, today } from '../../src/core/dates';
 import { buildHomeRecordReport, renderReportText } from '../../src/core/engine/transfer';
 import { formatMoney } from '../../src/core/money';
@@ -25,6 +25,7 @@ import {
   SectionTitle,
   Title,
 } from '../../src/ui/components';
+import { useDialog } from '../../src/ui/dialog';
 import { PlusGate } from '../../src/ui/plus';
 import { spacing, useTheme } from '../../src/ui/theme';
 
@@ -45,6 +46,7 @@ export default function HomeRecordScreen() {
   const router = useRouter();
   const record = useHomeRecord();
   const { can } = usePlan();
+  const { confirm, alert } = useDialog();
   const { can: mayDo } = usePermissions();
   const ownership = useOwnership();
   const transferProperty = useStore((s) => s.transferProperty);
@@ -109,7 +111,7 @@ export default function HomeRecordScreen() {
         title: report.title,
       });
     } catch {
-      Alert.alert('Could not share', 'Sharing is not available on this device.');
+      void alert('Could not share', 'Sharing is not available on this device.');
     }
   };
 
@@ -268,21 +270,18 @@ export default function HomeRecordScreen() {
                 tone={theme.red}
                 disabled={buyerName.trim().length === 0 || !isISODate(saleDate)}
                 onPress={() =>
-                  Alert.alert(
-                    `Transfer ${record.home.nickname}?`,
-                    'Your ownership period closes and the buyer\u2019s opens. You lose access to this home on this device.',
-                    [
-                      { text: 'Not yet', style: 'cancel' },
-                      {
-                        text: 'Transfer',
-                        style: 'destructive',
-                        onPress: () => {
-                          transferProperty({ toName: buyerName.trim(), on: saleDate });
-                          router.replace('/homes');
-                        },
-                      },
-                    ],
-                  )
+                  void confirm({
+                    title: `Transfer ${record.home.nickname}?`,
+                    message:
+                      'Your ownership period closes and the buyer\u2019s opens. You lose access to this home on this device.',
+                    confirmLabel: 'Transfer',
+                    cancelLabel: 'Not yet',
+                    destructive: true,
+                  }).then((ok) => {
+                    if (!ok) return;
+                    transferProperty({ toName: buyerName.trim(), on: saleDate });
+                    router.replace('/homes');
+                  })
                 }
               />
               <Button label="Cancel" variant="ghost" onPress={() => setTransferring(false)} />

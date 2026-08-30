@@ -1,8 +1,9 @@
 import { ImageManipulator, SaveFormat } from 'expo-image-manipulator';
 import * as ImagePicker from 'expo-image-picker';
-import { Alert, Platform } from 'react-native';
+import { Platform } from 'react-native';
 import { RESIZE_LONG_EDGE, RESIZE_QUALITY, imageBytes } from '../ai/payload';
 import type { ImagePayload } from '../ai/schemas';
+import { notify } from './dialog';
 
 /**
  * Photo capture for the scan, document, and problem flows.
@@ -85,7 +86,7 @@ async function ensureCameraPermission(): Promise<boolean> {
   const current = await ImagePicker.getCameraPermissionsAsync();
   if (current.granted) return true;
   if (!current.canAskAgain) {
-    Alert.alert(
+    notify(
       'Camera access is off',
       'Dwella needs the camera to read nameplates and invoices. Turn it on in Settings to scan.',
     );
@@ -114,7 +115,7 @@ export async function capturePhoto(role?: string): Promise<CapturedImage | undef
 export async function pickPhotos(role?: string, limit = 4): Promise<CapturedImage[]> {
   const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
   if (!permission.granted) {
-    Alert.alert('Photo access is off', 'Turn on photo access in Settings to attach existing photos.');
+    notify('Photo access is off', 'Turn on photo access in Settings to attach existing photos.');
     return [];
   }
   const result = await ImagePicker.launchImageLibraryAsync({

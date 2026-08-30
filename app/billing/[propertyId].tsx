@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useMemo } from 'react';
-import { Alert, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
 import { permissionsFor } from '../../src/core/account';
 import {
   TIERS,
@@ -33,6 +33,7 @@ import {
   Tertiary,
   Title,
 } from '../../src/ui/components';
+import { useDialog } from '../../src/ui/dialog';
 import { spacing, tabular, type, useTheme } from '../../src/ui/theme';
 
 /**
@@ -58,7 +59,9 @@ export default function MembershipDetails() {
   const charges = useStore((s) => s.charges);
   const changeTier = useStore((s) => s.changeTier);
   const cancelSubscription = useStore((s) => s.cancelSubscription);
+  const resumeSubscription = useStore((s) => s.resumeSubscription);
   const beginTrial = useStore((s) => s.beginTrial);
+  const { confirm } = useDialog();
   const asOf = today();
 
   const property = properties.find((p) => p.id === propertyId);
@@ -94,25 +97,51 @@ export default function MembershipDetails() {
   const maySeePrice = access.can('view_plan');
   const definition = TIERS[tier];
   const history = propertyId ? chargesForProperty(charges, propertyId) : [];
+  /*
+   * A plan already cancelled should not offer cancelling again. Until the period
+   * runs out the useful action is the opposite one, so the free row is replaced
+   * by a way back — nobody should have to re-buy something they are still paying
+   * for because they changed their mind two days later.
+   */
+  const pendingCancellation = Boolean(subscription?.cancelledOn) && tier !== 'free';
 
-  const move = (next: Tier) => {
+  /**
+   * Moving between plans.
+   *
+   * Downgrading is a decision the owner is entitled to make on the spot, so it
+   * confirms and applies. Upgrading would normally be a purchase — there is no
+   * billing provider wired up here, so the change is applied for evaluation and
+   * the dialog says exactly that rather than implying a charge that never
+   * happened. When StoreKit and Play Billing are in, this branch becomes a
+   * purchase whose success handler calls `activateSubscription`.
+   */
+  const move = async (next: Tier) => {
     if (!propertyId) return;
+
     if (next === 'free') {
-      Alert.alert(
-        `Cancel ${definition.name}?`,
-        `${property.nickname} keeps its record, history, and reminders — those are free forever. You lose the forecast, warranty alerts, and the full health breakdown${tier === 'care' ? ', and the seasonal visits' : ''}.`,
-        [
-          { text: 'Keep it', style: 'cancel' },
-          { text: 'Cancel plan', style: 'destructive', onPress: () => cancelSubscription(propertyId) },
-        ],
-      );
+      const confirmed = await confirm({
+        title: `Cancel ${definition.name}?`,
+        message: `${property.nickname} keeps its record, history, and reminders — those are free forever. You lose the forecast, warranty alerts, and the full health breakdown${tier === 'care' ? ', and the seasonal visits' : ''}. Access continues until the end of the period you have already paid for.`,
+        confirmLabel: 'Cancel plan',
+        cancelLabel: 'Keep it',
+        destructive: true,
+      });
+      if (confirmed) cancelSubscription(propertyId);
       return;
     }
-    Alert.alert(
-      'Not yet available',
-      'In-app purchase is not wired up in this build, so a plan cannot be bought here yet. The 30-day trial works and unlocks everything.',
-      [{ text: 'OK' }],
+
+    const target = TIERS[next];
+    const price = priceOfAdding(
+      subscriptions.filter((s) => s.propertyId !== propertyId),
+      next as Exclude<Tier, 'free'>,
+      asOf,
     );
+    const confirmed = await confirm({
+      title: `Switch ${property.nickname} to ${target.name}?`,
+      message: `${target.name} is ${formatMoneyExact(price)} a month for this home. In-app purchase is not wired up in this build, so nothing will be charged — the plan is applied so you can see what it changes.`,
+      confirmLabel: `Switch to ${target.name}`,
+    });
+    if (confirmed) changeTier(propertyId, next);
   };
 
   return (
@@ -210,7 +239,9 @@ export default function MembershipDetails() {
         <Enter index={2}>
           <View style={{ gap: spacing.md }}>
             <SectionTitle title="Plan" />
-            {TIER_ORDER.filter((option) => option !== tier).map((option) => {
+            {TIER_ORDER.filter(
+              (option) => option !== tier && !(pendingCancellation && option === 'free'),
+            ).map((option) => {
               const target = TIERS[option];
               const price =
                 option === 'free'
@@ -221,7 +252,7 @@ export default function MembershipDetails() {
                       asOf,
                     );
               return (
-                <Card key={option} onPress={() => move(option)}>
+                <Card key={option} onPress={() => void move(option)}>
                   <Row justify="space-between" gap={spacing.md}>
                     <View style={{ flex: 1 }}>
                       <Text style={[type.bodyStrong, { color: theme.text }]}>
@@ -249,11 +280,24 @@ export default function MembershipDetails() {
             ) : null}
 
             {subscription?.cancelledOn ? (
-              <Notice tone="attention" icon="information-circle-outline">
-                Cancelled on {formatDate(subscription.cancelledOn)}. You keep everything until{' '}
-                {subscription.renewsOn ? formatDate(subscription.renewsOn) : 'the end of the period'} —
-                nothing you have paid for is taken away early.
-              </Notice>
+              <>
+                <Notice tone="attention" icon="information-circle-outline">
+                  Cancelled on {formatDate(subscription.cancelledOn)}. You keep everything until{' '}
+                  {subscription.renewsOn ? formatDate(subscription.renewsOn) : 'the end of the period'}{' '}
+                  — nothing you have paid for is taken away early.
+                </Notice>
+                {pendingCancellation ? (
+                  <Button
+                    label={`Keep ${definition.name} after all`}
+                    icon="refresh-outline"
+                    variant="secondary"
+                    onPress={() => {
+                      if (propertyId) resumeSubscription(propertyId);
+                    }}
+                    full
+                  />
+                ) : null}
+              </>
             ) : null}
           </View>
         </Enter>

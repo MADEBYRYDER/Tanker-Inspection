@@ -1,6 +1,6 @@
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Alert, View } from 'react-native';
+import { View } from 'react-native';
 import { gatewayHealth, isGatewayConfigured } from '../src/ai/client';
 import { buildSampleRecord } from '../src/data/sampleHome';
 import { useHomeRecord, useStore } from '../src/state/store';
@@ -20,6 +20,7 @@ import {
   SectionTitle,
   Title,
 } from '../src/ui/components';
+import { useDialog } from '../src/ui/dialog';
 import { spacing, useTheme } from '../src/ui/theme';
 
 export default function Settings() {
@@ -28,6 +29,7 @@ export default function Settings() {
   const record = useHomeRecord();
   const reset = useStore((s) => s.resetEverything);
   const loadRecord = useStore((s) => s.loadRecord);
+  const { confirm } = useDialog();
 
   const [health, setHealth] = useState<{ ok: boolean; model?: string; detail?: string }>();
 
@@ -41,22 +43,31 @@ export default function Settings() {
     };
   }, []);
 
-  const confirmReset = () => {
-    Alert.alert(
-      'Erase this home record?',
-      'Every piece of equipment, every timeline entry, and every document reference on this device will be deleted. This cannot be undone.',
-      [
-        { text: 'Keep it', style: 'cancel' },
-        {
-          text: 'Erase',
-          style: 'destructive',
-          onPress: () => {
-            reset();
-            router.replace('/onboarding');
-          },
-        },
-      ],
-    );
+  const confirmReset = async () => {
+    const confirmed = await confirm({
+      title: 'Erase this home record?',
+      message:
+        'Every piece of equipment, every timeline entry, and every document reference on this device will be deleted. This cannot be undone.',
+      confirmLabel: 'Erase',
+      cancelLabel: 'Keep it',
+      destructive: true,
+    });
+    if (!confirmed) return;
+    reset();
+    router.replace('/onboarding');
+  };
+
+  const confirmLoadSample = async () => {
+    const confirmed = await confirm({
+      title: 'Replace your record?',
+      message: 'This overwrites the record on this device with sample data.',
+      confirmLabel: 'Load sample',
+      destructive: true,
+    });
+    if (!confirmed) return;
+    const { record: sample, media } = buildSampleRecord();
+    loadRecord(sample, media);
+    router.replace('/(tabs)');
   };
 
   return (
@@ -133,25 +144,18 @@ export default function Settings() {
           label="Load the sample home"
           variant="secondary"
           icon="albums-outline"
-          onPress={() =>
-            Alert.alert('Replace your record?', 'This overwrites the record on this device with sample data.', [
-              { text: 'Cancel', style: 'cancel' },
-              {
-                text: 'Load sample',
-                onPress: () => {
-                  const { record: sample, media } = buildSampleRecord();
-                  loadRecord(sample, media);
-                  router.replace('/(tabs)');
-                },
-              },
-            ])
-          }
+          onPress={() => void confirmLoadSample()}
         />
       </Card>
 
       <Card>
         <SectionTitle title="Danger zone" />
-        <Button label="Erase this home record" variant="danger" icon="trash-outline" onPress={confirmReset} />
+        <Button
+          label="Erase this home record"
+          variant="danger"
+          icon="trash-outline"
+          onPress={() => void confirmReset()}
+        />
       </Card>
 
       <View style={{ gap: spacing.xs, marginTop: spacing.lg }}>

@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useState } from 'react';
-import { Alert, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
 import {
   ASSIGNABLE_ROLES,
   ROLE_BLURB,
@@ -28,6 +28,7 @@ import {
   Tertiary,
   Title,
 } from '../src/ui/components';
+import { useDialog } from '../src/ui/dialog';
 import { Touchable } from '../src/ui/motion';
 import { PlusGate } from '../src/ui/plus';
 import { spacing, type, useTheme } from '../src/ui/theme';
@@ -54,6 +55,7 @@ export default function Household() {
   const updateRole = useStore((s) => s.updateMemberRole);
   const removeMember = useStore((s) => s.removeMember);
   const memberships = useStore((s) => s.memberships);
+  const { confirm, alert } = useDialog();
 
   const [adding, setAdding] = useState(false);
   const [name, setName] = useState('');
@@ -140,21 +142,19 @@ export default function Household() {
                     onPress={() => {
                       const verdict = canRemoveMember(memberships, member.id);
                       if (!verdict.allowed) {
-                        Alert.alert('Cannot remove', verdict.reason ?? '');
+                        void alert('Cannot remove', verdict.reason ?? '');
                         return;
                       }
-                      Alert.alert(
-                        `Remove ${member.displayName}?`,
-                        'They lose access to this home. Anything they added stays in the record.',
-                        [
-                          { text: 'Keep', style: 'cancel' },
-                          {
-                            text: 'Remove',
-                            style: 'destructive',
-                            onPress: () => removeMember(member.id),
-                          },
-                        ],
-                      );
+                      void confirm({
+                        title: `Remove ${member.displayName}?`,
+                        message:
+                          'They lose access to this home. Anything they added stays in the record.',
+                        confirmLabel: 'Remove',
+                        cancelLabel: 'Keep',
+                        destructive: true,
+                      }).then((ok) => {
+                        if (ok) removeMember(member.id);
+                      });
                     }}
                     scaleTo={0.96}
                   >

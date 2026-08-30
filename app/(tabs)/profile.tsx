@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
-import { Alert, View } from 'react-native';
+import { View } from 'react-native';
 import { gatewayHealth } from '../../src/ai/client';
 import { today } from '../../src/core/dates';
 import { computeForecast } from '../../src/core/engine/forecast';
@@ -25,6 +25,7 @@ import {
   Tertiary,
   Title,
 } from '../../src/ui/components';
+import { useDialog } from '../../src/ui/dialog';
 import { PlusMark } from '../../src/ui/plus';
 import { radius, spacing, useTheme } from '../../src/ui/theme';
 
@@ -45,6 +46,7 @@ export default function Profile() {
   const householdCount = useHousehold().length;
   const reset = useStore((s) => s.resetEverything);
   const loadRecord = useStore((s) => s.loadRecord);
+  const { confirm } = useDialog();
   const [gateway, setGateway] = useState<{ ok: boolean; model?: string; detail?: string }>();
 
   useEffect(() => {
@@ -67,22 +69,32 @@ export default function Profile() {
 
   if (!record || !figures) return <Screen><Small>Set up your home first.</Small></Screen>;
 
-  const confirmReset = () =>
-    Alert.alert(
-      'Erase this home record?',
-      'Every piece of equipment, every timeline entry, and every document reference on this device will be deleted. This cannot be undone.',
-      [
-        { text: 'Keep it', style: 'cancel' },
-        {
-          text: 'Erase',
-          style: 'destructive',
-          onPress: () => {
-            reset();
-            router.replace('/onboarding');
-          },
-        },
-      ],
-    );
+  const confirmReset = async () => {
+    const confirmed = await confirm({
+      title: 'Erase this home record?',
+      message:
+        'Every piece of equipment, every timeline entry, and every document reference on this device will be deleted. This cannot be undone.',
+      confirmLabel: 'Erase',
+      cancelLabel: 'Keep it',
+      destructive: true,
+    });
+    if (!confirmed) return;
+    reset();
+    router.replace('/onboarding');
+  };
+
+  const confirmLoadSample = async () => {
+    const confirmed = await confirm({
+      title: 'Replace your record?',
+      message: 'This overwrites what is on this device with sample data.',
+      confirmLabel: 'Load sample',
+      destructive: true,
+    });
+    if (!confirmed) return;
+    const { record: sample, media } = buildSampleRecord();
+    loadRecord(sample, media);
+    router.replace('/(tabs)');
+  };
 
   return (
     <Screen gap={spacing.xl}>
@@ -273,21 +285,14 @@ export default function Profile() {
               label="Load sample home"
               variant="quiet"
               size="sm"
-              onPress={() =>
-                Alert.alert('Replace your record?', 'This overwrites what is on this device with sample data.', [
-                  { text: 'Cancel', style: 'cancel' },
-                  {
-                    text: 'Load sample',
-                    onPress: () => {
-                      const { record: sample, media } = buildSampleRecord();
-                      loadRecord(sample, media);
-                      router.replace('/(tabs)');
-                    },
-                  },
-                ])
-              }
+              onPress={() => void confirmLoadSample()}
             />
-            <Button label="Erase everything" variant="danger" size="sm" onPress={confirmReset} />
+            <Button
+              label="Erase everything"
+              variant="danger"
+              size="sm"
+              onPress={() => void confirmReset()}
+            />
           </Row>
         </Card>
       </View>

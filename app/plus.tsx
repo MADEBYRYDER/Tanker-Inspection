@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { Alert, Linking, StyleSheet, Text, View } from 'react-native';
+import { Linking, StyleSheet, Text, View } from 'react-native';
 import { formatDate, today } from '../src/core/dates';
 import { COMPARISON, PRICES, TRIAL_DAYS } from '../src/core/entitlements';
 import { computeForecast, likelyReplacements } from '../src/core/engine/forecast';
@@ -24,6 +24,7 @@ import {
   Tertiary,
 } from '../src/ui/components';
 import { Touchable } from '../src/ui/motion';
+import { useDialog } from '../src/ui/dialog';
 import { PlusMark } from '../src/ui/plus';
 import { radius, spacing, tabular, type, useTheme } from '../src/ui/theme';
 
@@ -48,6 +49,7 @@ export default function Plus() {
   const record = useHomeRecord();
   const { isPlus, subscription, trialDaysLeft, canStartTrial, priceOfAdding } = usePlan();
   const activePropertyId = useStore((s) => s.activePropertyId);
+  const { confirm, alert } = useDialog();
   const beginTrial = useStore((s) => s.beginTrial);
   const cancelSubscription = useStore((s) => s.cancelSubscription);
   const [selected, setSelected] = useState<'monthly' | 'annual'>('annual');
@@ -94,10 +96,9 @@ export default function Plus() {
    * `activateSubscription`.
    */
   const purchase = () => {
-    Alert.alert(
+    void alert(
       'Not yet available',
       'In-app purchase is not wired up in this build, so Dwella+ cannot be bought here yet. The 30-day trial works and unlocks everything.',
-      [{ text: 'OK' }],
     );
   };
 
@@ -153,18 +154,16 @@ export default function Plus() {
               variant="ghost"
               tone={theme.textSecondary}
               onPress={() =>
-                Alert.alert(
-                  trialDaysLeft !== undefined ? 'End the trial?' : 'Cancel Dwella+?',
-                  'Your home record, history, and reminders stay exactly as they are. You lose the forecast, warranty alerts, and the full health breakdown.',
-                  [
-                    { text: 'Keep it', style: 'cancel' },
-                    {
-                      text: 'End it',
-                      style: 'destructive',
-                      onPress: () => activePropertyId && cancelSubscription(activePropertyId),
-                    },
-                  ],
-                )
+                void confirm({
+                  title: trialDaysLeft !== undefined ? 'End the trial?' : 'Cancel Dwella+?',
+                  message:
+                    'Your home record, history, and reminders stay exactly as they are. You lose the forecast, warranty alerts, and the full health breakdown.',
+                  confirmLabel: 'End it',
+                  cancelLabel: 'Keep it',
+                  destructive: true,
+                }).then((ok) => {
+                  if (ok && activePropertyId) cancelSubscription(activePropertyId);
+                })
               }
             />
           </Card>

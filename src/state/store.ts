@@ -228,6 +228,8 @@ interface StoreState {
   }) => void;
   changeTier: (propertyId: string, tier: Tier) => void;
   cancelSubscription: (propertyId: string) => void;
+  /** Undoes a pending cancellation before the period it was paid for runs out. */
+  resumeSubscription: (propertyId: string) => void;
   setPaymentMethod: (method: Omit<PaymentMethod, 'id' | 'addedAt' | 'isDefault'>) => void;
   removePaymentMethod: (id: string) => void;
   recordCareVisit: (propertyId: string, on: ISODate, note?: string) => void;
@@ -853,6 +855,24 @@ export const useStore = create<StoreState>()(
               source: existing.source === 'trial' ? 'none' : existing.source,
               tier: existing.source === 'trial' ? 'free' : existing.tier,
               cancelledOn: today(),
+            }),
+          };
+        }),
+
+      /*
+       * Changing your mind before the period ends. Nothing lapsed, so nothing
+       * needs to be re-bought: clearing the cancellation date is the whole
+       * operation. A trial that was cancelled has already been moved to free and
+       * cannot be resumed this way — `trialAvailable` still sees it as used.
+       */
+      resumeSubscription: (propertyId) =>
+        set((state) => {
+          const existing = subscriptionFor(state.subscriptions, propertyId);
+          if (!existing?.cancelledOn) return state;
+          return {
+            subscriptions: upsertSubscription(state.subscriptions, {
+              ...existing,
+              cancelledOn: undefined,
             }),
           };
         }),

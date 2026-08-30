@@ -1,12 +1,14 @@
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { DialogProvider } from '../src/ui/dialog';
 import { useTheme } from '../src/ui/theme';
 
 export default function RootLayout() {
   const theme = useTheme();
   return (
     <SafeAreaProvider>
+      <DialogProvider>
       <StatusBar style={theme.dark ? 'light' : 'dark'} />
       <Stack
         screenOptions={{
@@ -55,6 +57,7 @@ export default function RootLayout() {
         <Stack.Screen name="billing/index" options={{ title: 'Billing & Membership' }} />
         <Stack.Screen name="billing/[propertyId]" options={{ title: 'Membership' }} />
       </Stack>
+      </DialogProvider>
     </SafeAreaProvider>
   );
 }

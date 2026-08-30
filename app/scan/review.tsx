@@ -1,6 +1,6 @@
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import { Alert, View } from 'react-native';
+import { View } from 'react-native';
 import type { DraftIdentification } from '../../src/state/scanDraft';
 import { isISODate, today } from '../../src/core/dates';
 import type { ComponentCategory, HomeComponent, Spec } from '../../src/core/types';
@@ -24,6 +24,7 @@ import {
   Screen,
   SectionTitle,
 } from '../../src/ui/components';
+import { useDialog } from '../../src/ui/dialog';
 import { CATEGORY_LABEL, spacing, useTheme } from '../../src/ui/theme';
 
 const CATEGORIES: ComponentCategory[] = [
@@ -56,12 +57,13 @@ export default function ScanReview() {
   const draft = useScanDraft();
   const addComponent = useStore((s) => s.addComponent);
   const addEvent = useStore((s) => s.addEvent);
+  const { alert } = useDialog();
   const [saving, setSaving] = useState(false);
 
   const save = () => {
     const incomplete = draft.results.filter((r) => !r.name.trim() || !r.type.trim());
     if (incomplete.length > 0) {
-      Alert.alert('Add a name and type', 'Every item needs at least a name and an equipment type before it can be saved.');
+      void alert('Add a name and type', 'Every item needs at least a name and an equipment type before it can be saved.');
       return;
     }
     setSaving(true);
