@@ -6,7 +6,9 @@ import { today } from '../src/core/dates';
 import { PROPERTY_TYPES, ROLE_LABEL, propertyTypeLabel } from '../src/core/account';
 import { computeHomeHealth } from '../src/core/engine/health';
 import { generateTasks } from '../src/core/engine/schedule';
-import { usePlan } from '../src/state/plan';
+import { TIERS } from '../src/core/billing';
+import { formatMoneyExact } from '../src/core/money';
+import { usePlan, useTierOf } from '../src/state/plan';
 import { useProperties, useStore } from '../src/state/store';
 import {
   Badge,
@@ -22,7 +24,6 @@ import {
   Title,
 } from '../src/ui/components';
 import { Touchable } from '../src/ui/motion';
-import { PlusGate } from '../src/ui/plus';
 import { healthStatus, radius, spacing, tabular, type, useTheme } from '../src/ui/theme';
 
 /**
@@ -47,7 +48,7 @@ export default function Homes() {
   const completions = useStore((s) => s.completions);
   const documents = useStore((s) => s.documents);
   const serviceRequests = useStore((s) => s.serviceRequests);
-  const { homes } = usePlan();
+  const { priceOfAdding } = usePlan();
   const asOf = today();
 
   /*
@@ -144,6 +145,7 @@ export default function Homes() {
                       {role ? (
                         <Badge label={ROLE_LABEL[role]} fg={theme.blue} bg={theme.blueSoft} />
                       ) : null}
+                      <TierBadge propertyId={home.id} />
                     </Row>
                   </View>
                 </Row>
@@ -172,8 +174,13 @@ export default function Homes() {
        * an "add a home" form you have already half filled in is the worst place
        * to learn about it.
        */}
-      {homes.canAddAnother ? (
-        <Enter index={properties.length}>
+      {/*
+       * Adding a property is free, and says so. Plans are per property now, so
+       * the charge is for what you put *on* a home rather than for the home
+       * existing — which is both cheaper for someone cataloguing a rental they
+       * only want a record of, and easier to explain than a per-home surcharge.
+       */}
+      <Enter index={properties.length}>
           <Touchable
             onPress={() => router.push('/home/new')}
             style={{
@@ -195,21 +202,21 @@ export default function Homes() {
               is exactly the kind of surprise that loses a subscriber.
             */}
             <Tertiary style={{ textAlign: 'center' }}>
-              {homes.included > homes.count
-                ? `${homes.included - homes.count} more included in your plan.`
-                : `${homes.extraPriceLabel} a month for each home beyond the ${homes.included === 1 ? 'first' : `first ${homes.included}`}.`}
+              Free. Each home has its own plan — Dwella+ on this one is{' '}
+              {formatMoneyExact(priceOfAdding('plus'))} a month.
             </Tertiary>
           </Touchable>
-        </Enter>
-      ) : (
-        <Enter index={properties.length}>
-          <PlusGate
-            icon="business-outline"
-            title="More than one property"
-            promise={`Dwella Free covers one home. Dwella+ covers your household and adds properties at ${homes.extraPriceLabel} a month each — a beach house, a rental, a parent's place, each with its own separate record.`}
-          />
-        </Enter>
-      )}
+      </Enter>
+
+      <Card onPress={() => router.push('/billing')}>
+        <Row justify="space-between">
+          <View style={{ flex: 1 }}>
+            <SectionTitle title="Billing & Membership" />
+            <Small>One account, one card — a plan per home.</Small>
+          </View>
+          <Ionicons name="chevron-forward" size={16} color={theme.textTertiary} />
+        </Row>
+      </Card>
 
       <Card tone={theme.surfaceSunken} raised={0}>
         <SectionTitle title="Why they are separate" />
@@ -221,4 +228,17 @@ export default function Homes() {
       </Card>
     </Screen>
   );
+}
+
+/** The plan on a property, shown wherever properties are listed together. */
+function TierBadge({ propertyId }: { propertyId: string }) {
+  const theme = useTheme();
+  const tier = useTierOf(propertyId);
+  const palette =
+    tier === 'care'
+      ? { fg: theme.sage, bg: theme.sageSoft }
+      : tier === 'plus'
+        ? { fg: theme.text, bg: theme.surfaceSunken }
+        : { fg: theme.textTertiary, bg: theme.surfaceSunken };
+  return <Badge label={TIERS[tier].name} fg={palette.fg} bg={palette.bg} />;
 }

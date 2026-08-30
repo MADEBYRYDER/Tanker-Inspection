@@ -81,6 +81,50 @@ Roles are enforced **server-side**, not just in the UI. `permissionsFor()` in
 `src/core/account.ts` is the single source of truth and is imported by both the
 app and the server, so the two cannot disagree about who may do what.
 
+### Billing is account-level; memberships are property-level
+
+One card, one payment history, one person responsible — **a plan per house.**
+Somebody can hold Dwella Care on their residence, Dwella+ on a rental, and
+nothing at all on the beach house.
+
+Every charge carries an account id and, where it is about a building, a property
+id. That one field is what turns a transaction list into something a landlord
+can read:
+
+```
+August 2026 — $246.94
+  Main Residence   $39.00
+  Rental #1        $39.00
+  Rental #2        $160.94   Dwella+ $7.99 · Handyman $121.95 · Care $39.00
+  Rental #3         $7.99
+```
+
+Pricing is per property. Adding a home is **free** — it starts on Dwella Free
+with its own record, schedule, and reminders; you pay for what you put on it.
+Dwella+ is $7.99 for the first property and $3.99 for each additional one; Care
+is $39 everywhere, because a van visiting an address does not get cheaper
+because you own more addresses.
+
+Care benefits are shown as **remaining credits**, not as terms — "1 of 2
+seasonal visits left", not "two visits per membership year". Visits count
+against the *membership* year rather than the calendar year, so joining in
+November does not hand out four visits in five months, and consecutive visits
+are spaced four months apart so a "seasonal" visit lands in a different season.
+
+Billing access is separate from household access:
+
+| | Plan and benefits | Payment history and card |
+|---|---|---|
+| Owner | ✓ | ✓ |
+| Billing admin (a flag, not a role) | ✓ | ✓ |
+| Household admin | ✓ | — |
+| Member / Manager | Benefits only | — |
+| Professional | — | — |
+
+A household admin runs the house and can see there is a Care visit left; they
+cannot see the card or cancel the membership. Running the house and holding the
+account are different responsibilities.
+
 ### Property types
 
 Primary residence · Second/vacation home · Rental · Condo/townhome · Under

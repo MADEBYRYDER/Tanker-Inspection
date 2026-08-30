@@ -134,6 +134,14 @@ export interface Membership {
   email?: string;
   addedAt: ISODateTime;
   addedBy?: string;
+  /**
+   * Full billing access without being an owner.
+   *
+   * Set by an owner for the person who actually holds the card — a spouse, a
+   * bookkeeper, an office manager for a landlord. Grants exactly the two
+   * billing permissions and nothing else; it is not a step towards ownership.
+   */
+  billingAdmin?: boolean;
   /** Set for time-boxed access — a contractor, an inspector, an agent. */
   expiresAt?: ISODateTime;
   /** An invitation not yet taken up. */
@@ -158,6 +166,13 @@ export type Permission =
   | 'manage_members'
   | 'transfer_property'
   | 'delete_property'
+  /** See what the plan includes and what is left of it — visits, discounts. */
+  | 'view_benefits'
+  /** See the plan, its price, and when it renews. */
+  | 'view_plan'
+  /** See payment history, invoices, and the card on file. */
+  | 'view_billing'
+  /** Change plan, cancel, or update the payment method. */
   | 'manage_billing';
 
 const ALL: Permission[] = [
@@ -171,6 +186,9 @@ const ALL: Permission[] = [
   'manage_members',
   'transfer_property',
   'delete_property',
+  'view_benefits',
+  'view_plan',
+  'view_billing',
   'manage_billing',
 ];
 
@@ -186,15 +204,31 @@ const ALL: Permission[] = [
  */
 export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
   owner: ALL,
-  admin: ALL.filter((p) => p !== 'transfer_property' && p !== 'delete_property'),
+  /*
+   * A household admin sees the plan and what it includes — they need to know
+   * there is a Care visit left before they book a contractor — but not the card
+   * or the payment history, and they cannot cancel the membership. Running the
+   * house and holding the account are different responsibilities, and a partner
+   * being able to see what everything cost is a decision for the person paying,
+   * not a default.
+   */
+  admin: ALL.filter(
+    (p) =>
+      p !== 'transfer_property' &&
+      p !== 'delete_property' &&
+      p !== 'view_billing' &&
+      p !== 'manage_billing',
+  ),
   manager: [
     'view_record',
     'add_records',
     'edit_records',
     'complete_tasks',
     'request_service',
+    // Needs to know whether a Care visit is available before booking one.
+    'view_benefits',
   ],
-  member: ['view_record', 'view_costs', 'add_records', 'complete_tasks'],
+  member: ['view_record', 'view_costs', 'add_records', 'complete_tasks', 'view_benefits'],
   viewer: ['view_record'],
   /*
    * A contractor or inspector, granted access to do a specific job. They can
@@ -247,7 +281,7 @@ export function membershipActive(membership: Membership, now: ISODateTime): bool
 export function permissionsFor(
   memberships: Membership[],
   params: { accountId: string; propertyId: string; now: ISODateTime },
-): { role?: Role; can: (permission: Permission) => boolean } {
+): { role?: Role; billingAdmin?: boolean; can: (permission: Permission) => boolean } {
   const membership = memberships.find(
     (m) =>
       m.accountId === params.accountId &&
@@ -255,7 +289,16 @@ export function permissionsFor(
       membershipActive(m, params.now),
   );
   if (!membership) return { can: () => false };
-  return { role: membership.role, can: (permission) => roleCan(membership.role, permission) };
+  return {
+    role: membership.role,
+    billingAdmin: membership.billingAdmin === true,
+    can: (permission) =>
+      roleCan(membership.role, permission) ||
+      // The billing-admin flag adds billing access on top of whatever the role
+      // already allows. It never removes anything and never grants anything else.
+      (membership.billingAdmin === true &&
+        (permission === 'view_billing' || permission === 'manage_billing' || permission === 'view_plan')),
+  };
 }
 
 /** Properties this account can currently reach, most privileged first. */

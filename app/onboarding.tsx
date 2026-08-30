@@ -79,8 +79,8 @@ export default function Onboarding() {
   };
 
   const loadSample = () => {
-    const { record, media } = buildSampleRecord();
-    loadRecord(record, media);
+    const { record, media, billing } = buildSampleRecord();
+    loadRecord(record, media, billing);
     router.replace('/(tabs)');
   };
 

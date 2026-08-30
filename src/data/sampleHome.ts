@@ -1,3 +1,4 @@
+import type { CareVisit, Charge, PaymentMethod, PropertySubscription } from '../core/billing';
 import type { DocumentRef, HomeComponent, HomeRecord, MediaRef, TimelineEvent } from '../core/types';
 
 /**
@@ -397,7 +398,18 @@ const events: TimelineEvent[] = [
  * the sample for everything else in the process. Deep-cloning on the way out
  * makes "load the sample home" mean the same thing every time it is called.
  */
-export function buildSampleRecord(): { record: HomeRecord; media: MediaRef[] } {
+export interface SampleBilling {
+  subscription: PropertySubscription;
+  paymentMethod: Omit<PaymentMethod, 'id' | 'addedAt' | 'isDefault'>;
+  careVisits: CareVisit[];
+  charges: Omit<Charge, 'accountId'>[];
+}
+
+export function buildSampleRecord(): {
+  record: HomeRecord;
+  media: MediaRef[];
+  billing: SampleBilling;
+} {
   return clone({
     record: {
       home: {
@@ -515,6 +527,64 @@ export function buildSampleRecord(): { record: HomeRecord; media: MediaRef[] } {
       serviceRequests: [],
     },
     media: [],
+    /*
+     * A worked billing example, so Billing & Membership is legible in the sample
+     * home rather than an empty state. Care on the residence at $39, two months
+     * of history, and one handyman job — enough to show that a charge belongs to
+     * both an account and a building.
+     */
+    billing: {
+      subscription: {
+        id: `sub_${HOME_ID}`,
+        propertyId: HOME_ID,
+        tier: 'care' as const,
+        source: 'promo' as const,
+        cycle: 'monthly' as const,
+        startedOn: '2026-03-30',
+        renewsOn: '2026-09-30',
+      },
+      paymentMethod: {
+        brand: 'visa' as const,
+        last4: '4821',
+        expMonth: 8,
+        expYear: 2029,
+      },
+      careVisits: [
+        { id: 'visit_spring', propertyId: HOME_ID, usedOn: '2026-04-18', note: 'Spring visit — gutters, condenser rinse, filter change.' },
+      ],
+      charges: [
+        {
+          id: 'chg_aug_care',
+          propertyId: HOME_ID,
+          date: '2026-08-30',
+          description: 'Dwella Care — monthly',
+          amountCents: 3_900,
+          kind: 'subscription' as const,
+          status: 'paid' as const,
+          receiptNumber: 'DW-2026-08-0031',
+        },
+        {
+          id: 'chg_aug_handyman',
+          propertyId: HOME_ID,
+          date: '2026-08-14',
+          description: 'Handyman visit — gutter downspout reattached (10% member discount)',
+          amountCents: 12_195,
+          kind: 'service' as const,
+          status: 'paid' as const,
+          receiptNumber: 'DW-2026-08-0018',
+        },
+        {
+          id: 'chg_jul_care',
+          propertyId: HOME_ID,
+          date: '2026-07-30',
+          description: 'Dwella Care — monthly',
+          amountCents: 3_900,
+          kind: 'subscription' as const,
+          status: 'paid' as const,
+          receiptNumber: 'DW-2026-07-0029',
+        },
+      ],
+    },
   });
 }
 

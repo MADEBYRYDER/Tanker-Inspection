@@ -120,8 +120,63 @@ describe('roles', () => {
     for (const role of ['admin', 'manager', 'member', 'viewer', 'professional'] as Role[]) {
       expect(roleCan(role, 'transfer_property')).toBe(false);
       expect(roleCan(role, 'delete_property')).toBe(false);
-      expect(roleCan(role, 'manage_billing')).toBe(role === 'admin');
     }
+  });
+
+  it('reserves billing for the owner, not the household admin', () => {
+    // Running the house and holding the card are different responsibilities.
+    expect(roleCan('admin', 'view_plan')).toBe(true);
+    expect(roleCan('admin', 'view_benefits')).toBe(true);
+    expect(roleCan('admin', 'view_billing')).toBe(false);
+    expect(roleCan('admin', 'manage_billing')).toBe(false);
+    expect(roleCan('owner', 'view_billing')).toBe(true);
+    expect(roleCan('owner', 'manage_billing')).toBe(true);
+  });
+
+  it('lets a member see the benefits without the payment history', () => {
+    expect(roleCan('member', 'view_benefits')).toBe(true);
+    expect(roleCan('member', 'view_plan')).toBe(false);
+    expect(roleCan('member', 'view_billing')).toBe(false);
+  });
+
+  it('lets a manager check a Care visit is available without seeing money', () => {
+    expect(roleCan('manager', 'view_benefits')).toBe(true);
+    expect(roleCan('manager', 'view_costs')).toBe(false);
+    expect(roleCan('manager', 'view_billing')).toBe(false);
+  });
+
+  it('gives a professional no billing access of any kind', () => {
+    for (const permission of ['view_benefits', 'view_plan', 'view_billing', 'manage_billing'] as const) {
+      expect(roleCan('professional', permission)).toBe(false);
+    }
+  });
+});
+
+describe('the billing admin flag', () => {
+  const base = member({ accountId: 'bookkeeper', propertyId: 'p_home', role: 'admin' });
+
+  it('adds billing access without adding anything else', () => {
+    const withFlag = [{ ...base, billingAdmin: true }];
+    const { can } = permissionsFor(withFlag, { accountId: 'bookkeeper', propertyId: 'p_home', now: NOW });
+    expect(can('view_billing')).toBe(true);
+    expect(can('manage_billing')).toBe(true);
+    // Still not a step towards ownership.
+    expect(can('transfer_property')).toBe(false);
+    expect(can('delete_property')).toBe(false);
+  });
+
+  it('does nothing without a membership', () => {
+    const { can } = permissionsFor([{ ...base, billingAdmin: true }], {
+      accountId: 'stranger',
+      propertyId: 'p_home',
+      now: NOW,
+    });
+    expect(can('view_billing')).toBe(false);
+  });
+
+  it('is off unless it is set', () => {
+    const { can } = permissionsFor([base], { accountId: 'bookkeeper', propertyId: 'p_home', now: NOW });
+    expect(can('view_billing')).toBe(false);
   });
 
   it('never offers owner as a role to hand out', () => {

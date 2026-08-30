@@ -4,13 +4,18 @@ import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 import { today } from '../core/dates';
 import {
-  NO_SUBSCRIPTION,
+  freeSubscription,
   startTrial,
   trialAvailable,
-  type MeteredKey,
-  type Subscription,
+  type BillingCycle,
+  type Charge,
+  type CareVisit,
+  type PaymentMethod,
+  type PropertySubscription,
   type SubscriptionSource,
-} from '../core/entitlements';
+  type Tier,
+} from '../core/billing';
+import type { MeteredKey } from '../core/entitlements';
 import {
   canRemoveMember,
   generatePublicId,
@@ -108,7 +113,16 @@ interface StoreState {
   setActiveProperty: (propertyId: string) => void;
   removeProperty: (propertyId: string) => void;
   resetEverything: () => void;
-  loadRecord: (record: HomeRecord, media?: MediaRef[]) => void;
+  loadRecord: (
+    record: HomeRecord,
+    media?: MediaRef[],
+    billing?: {
+      subscription: PropertySubscription;
+      paymentMethod: Omit<PaymentMethod, 'id' | 'addedAt' | 'isDefault'>;
+      careVisits: CareVisit[];
+      charges: Omit<Charge, 'accountId'>[];
+    },
+  ) => void;
 
   /* Household */
   addMember: (input: {
@@ -187,17 +201,36 @@ interface StoreState {
   appendAssistantMessage: (message: Omit<AssistantMessage, 'id' | 'createdAt'>) => AssistantMessage;
   clearAssistant: () => void;
 
-  /* Plan */
-  subscription: Subscription;
+  /*
+   * Billing is account-level; memberships are property-level.
+   *
+   * One card and one payment history for the person, one subscription per
+   * building. Somebody can hold Care on their residence, Plus on a rental, and
+   * nothing on the beach house — which is impossible to express if the plan is
+   * a single field on the account.
+   */
+  subscriptions: PropertySubscription[];
+  paymentMethods: PaymentMethod[];
+  charges: Charge[];
+  careVisits: CareVisit[];
   usage: UsageState;
-  beginTrial: () => void;
-  /** Records a real store purchase. Called by the billing layer, not by a screen. */
+
+  /** Starts the one-time trial on a property. */
+  beginTrial: (propertyId?: string) => void;
+  /** Records a real store purchase against one property. Called by the billing layer. */
   activateSubscription: (params: {
+    propertyId: string;
+    tier: Exclude<Tier, 'free'>;
     source: Extract<SubscriptionSource, 'app_store' | 'play_store' | 'promo'>;
+    cycle?: BillingCycle;
     renewsOn?: ISODate;
     billingReference?: string;
   }) => void;
-  cancelSubscription: () => void;
+  changeTier: (propertyId: string, tier: Tier) => void;
+  cancelSubscription: (propertyId: string) => void;
+  setPaymentMethod: (method: Omit<PaymentMethod, 'id' | 'addedAt' | 'isDefault'>) => void;
+  removePaymentMethod: (id: string) => void;
+  recordCareVisit: (propertyId: string, on: ISODate, note?: string) => void;
   /** Increments a metered counter, rolling the period first if the month has turned. */
   countUsage: (key: MeteredKey) => void;
 }
@@ -230,8 +263,30 @@ function rolled(usage: UsageState, asOf: ISODate): UsageState {
   return usage.period === period ? usage : EMPTY_USAGE(asOf);
 }
 
+/** One subscription per property, replaced rather than appended. */
+function upsertSubscription(
+  subscriptions: PropertySubscription[],
+  next: PropertySubscription,
+): PropertySubscription[] {
+  const index = subscriptions.findIndex((s) => s.propertyId === next.propertyId);
+  if (index === -1) return [...subscriptions, next];
+  const copy = [...subscriptions];
+  copy[index] = next;
+  return copy;
+}
+
+export function subscriptionFor(
+  subscriptions: PropertySubscription[],
+  propertyId: string,
+): PropertySubscription | undefined {
+  return subscriptions.find((s) => s.propertyId === propertyId);
+}
+
 const EMPTY = {
   properties: [] as Home[],
+  subscriptions: [] as PropertySubscription[],
+  charges: [] as Charge[],
+  careVisits: [] as CareVisit[],
   memberships: [] as Membership[],
   ownership: [] as OwnershipPeriod[],
   activePropertyId: undefined as string | undefined,
@@ -339,7 +394,7 @@ export const useStore = create<StoreState>()(
 
       resetEverything: () => set({ account: undefined, ...EMPTY }),
 
-      loadRecord: (record, media = []) =>
+      loadRecord: (record, media = [], billing) =>
         set((state) => {
           const account =
             state.account ??
@@ -390,6 +445,19 @@ export const useStore = create<StoreState>()(
             ],
             media: [...state.media.filter((m) => m.homeId !== record.home.id), ...media],
             assistantMessages: [],
+            // Charges carry the account id so a receipt can always be traced to
+            // the person who was billed, not just the building it was for.
+            subscriptions: billing
+              ? upsertSubscription(state.subscriptions, billing.subscription)
+              : state.subscriptions,
+            paymentMethods: billing
+              ? [{ ...billing.paymentMethod, id: newId('pm'), isDefault: true, addedAt: nowISO() }]
+              : state.paymentMethods,
+            careVisits: billing ? billing.careVisits : state.careVisits,
+            charges:
+              billing && account
+                ? billing.charges.map((c) => ({ ...c, accountId: account.id }))
+                : state.charges,
           };
         }),
 
@@ -723,38 +791,93 @@ export const useStore = create<StoreState>()(
 
       clearAssistant: () => set({ assistantMessages: [] }),
 
-      subscription: NO_SUBSCRIPTION,
+      paymentMethods: [],
       usage: EMPTY_USAGE(today()),
 
-      beginTrial: () =>
-        set((state) =>
-          // One trial per household, ever. Checked here rather than only at the
+      beginTrial: (propertyId) =>
+        set((state) => {
+          const id = propertyId ?? state.activePropertyId;
+          if (!id) return state;
+          const existing = subscriptionFor(state.subscriptions, id);
+          // One trial per property, ever. Checked here rather than only at the
           // button, so no screen can hand out a second by calling this twice.
-          trialAvailable(state.subscription) ? { subscription: startTrial(today()) } : state,
-        ),
+          if (!trialAvailable(existing)) return state;
+          const started = startTrial(existing ?? freeSubscription(id, today()), today());
+          return { subscriptions: upsertSubscription(state.subscriptions, started) };
+        }),
 
-      activateSubscription: ({ source, renewsOn, billingReference }) =>
-        set((state) => ({
-          subscription: {
-            ...state.subscription,
+      activateSubscription: ({ propertyId, tier, source, cycle = 'monthly', renewsOn, billingReference }) =>
+        set((state) => {
+          const existing = subscriptionFor(state.subscriptions, propertyId) ?? freeSubscription(propertyId, today());
+          const updated: PropertySubscription = {
+            ...existing,
+            tier,
             source,
+            cycle,
             renewsOn,
             billingReference,
-          },
-        })),
+            cancelledOn: undefined,
+            startedOn: existing.tier === 'free' ? today() : existing.startedOn,
+          };
+          return { subscriptions: upsertSubscription(state.subscriptions, updated) };
+        }),
+
+      changeTier: (propertyId, tier) =>
+        set((state) => {
+          const existing = subscriptionFor(state.subscriptions, propertyId) ?? freeSubscription(propertyId, today());
+          return {
+            subscriptions: upsertSubscription(state.subscriptions, {
+              ...existing,
+              tier,
+              // Moving between paid tiers keeps whatever is paying for it;
+              // moving to free ends the billing relationship for this property.
+              source: tier === 'free' ? 'none' : existing.source === 'none' ? 'promo' : existing.source,
+              cancelledOn: undefined,
+            }),
+          };
+        }),
 
       /*
-       * Drops back to whatever the trial history was, so cancelling a paid plan
-       * does not hand out a fresh trial. The store remains the authority on
-       * whether the subscription is live; this only reflects that locally.
+       * Cancelling keeps the trial history, so it cannot be used to farm a
+       * second free month, and keeps `renewsOn` so access continues to the end
+       * of the period already paid for. Taking away what somebody has already
+       * paid for on the day they cancel would be theft dressed as a feature.
        */
-      cancelSubscription: () =>
+      cancelSubscription: (propertyId) =>
+        set((state) => {
+          const existing = subscriptionFor(state.subscriptions, propertyId);
+          if (!existing) return state;
+          return {
+            subscriptions: upsertSubscription(state.subscriptions, {
+              ...existing,
+              source: existing.source === 'trial' ? 'none' : existing.source,
+              tier: existing.source === 'trial' ? 'free' : existing.tier,
+              cancelledOn: today(),
+            }),
+          };
+        }),
+
+      setPaymentMethod: (method) =>
         set((state) => ({
-          subscription: {
-            source: 'none',
-            trialStartedOn: state.subscription.trialStartedOn,
-            trialEndsOn: state.subscription.trialEndsOn,
-          },
+          paymentMethods: [
+            ...state.paymentMethods.map((m) => ({ ...m, isDefault: false })),
+            { ...method, id: newId('pm'), isDefault: true, addedAt: nowISO() },
+          ],
+        })),
+
+      removePaymentMethod: (id) =>
+        set((state) => {
+          const remaining = state.paymentMethods.filter((m) => m.id !== id);
+          // Something has to be the default, or the next renewal has nowhere to go.
+          if (remaining.length > 0 && !remaining.some((m) => m.isDefault)) {
+            remaining[0] = { ...remaining[0]!, isDefault: true };
+          }
+          return { paymentMethods: remaining };
+        }),
+
+      recordCareVisit: (propertyId, on, note) =>
+        set((state) => ({
+          careVisits: [...state.careVisits, { id: newId('visit'), propertyId, usedOn: on, note }],
         })),
 
       countUsage: (key) =>
@@ -765,7 +888,7 @@ export const useStore = create<StoreState>()(
     }),
     {
       name: 'dwella-record-v1',
-      version: 2,
+      version: 3,
       storage: createJSONStorage(() => AsyncStorage),
       // Conversation scrollback is not part of the home's permanent record.
       partialize: (state) => ({
@@ -780,7 +903,10 @@ export const useStore = create<StoreState>()(
         completions: state.completions,
         serviceRequests: state.serviceRequests,
         media: state.media,
-        subscription: state.subscription,
+        subscriptions: state.subscriptions,
+        paymentMethods: state.paymentMethods,
+        charges: state.charges,
+        careVisits: state.careVisits,
         usage: state.usage,
       }),
       /**
@@ -794,7 +920,53 @@ export const useStore = create<StoreState>()(
        * house, now switchable.
        */
       migrate: (persisted, version) => {
-        if (version >= 2) return persisted as never;
+        /*
+         * v2 → v3: the single account-wide subscription becomes a subscription
+         * on the one property that existed when it was bought. Billing is now
+         * account-level and plans are property-level, so an account-wide plan
+         * has no home to belong to — and the only honest answer to "which house
+         * was this for" is the one they had.
+         */
+        if (version === 2) {
+          const v2 = persisted as {
+            subscription?: {
+              source?: string;
+              trialStartedOn?: string;
+              trialEndsOn?: string;
+              renewsOn?: string;
+              billingReference?: string;
+            };
+            properties?: Home[];
+            [key: string]: unknown;
+          };
+          const target = v2.properties?.[0];
+          const old = v2.subscription;
+          const { subscription: _dropped, ...rest } = v2;
+          return {
+            ...rest,
+            subscriptions:
+              target && old && old.source !== 'none'
+                ? [
+                    {
+                      id: `sub_${target.id}`,
+                      propertyId: target.id,
+                      tier: 'plus',
+                      source: old.source,
+                      cycle: 'monthly',
+                      startedOn: old.trialStartedOn ?? target.createdAt.slice(0, 10),
+                      renewsOn: old.renewsOn,
+                      trialStartedOn: old.trialStartedOn,
+                      trialEndsOn: old.trialEndsOn,
+                      billingReference: old.billingReference,
+                    },
+                  ]
+                : [],
+            paymentMethods: [],
+            charges: [],
+            careVisits: [],
+          } as never;
+        }
+        if (version >= 3) return persisted as never;
         const old = persisted as {
           home?: Home & { ownerName?: string; contactPhone?: string };
           documents?: DocumentRef[];
@@ -844,6 +1016,10 @@ export const useStore = create<StoreState>()(
           // have belonged to the one home that existed.
           documents: (old.documents ?? []).map((d) => ({ ...d, homeId: property.id })),
           media: (old.media ?? []).map((m) => ({ ...m, homeId: property.id })),
+          subscriptions: [],
+          paymentMethods: [],
+          charges: [],
+          careVisits: [],
         } as never;
       },
       onRehydrateStorage: () => (state) => {

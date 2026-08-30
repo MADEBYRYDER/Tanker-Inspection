@@ -1,82 +1,110 @@
 import { useMemo } from 'react';
 import { today } from '../core/dates';
 import {
-  checkUsage,
-  hasFeature,
-  homeAllowance,
-  planFor,
+  careBenefits,
+  priceOfAdding,
+  priceSubscriptions,
+  tierFor,
+  tierIncludesPlus,
   trialAvailable,
   trialDaysRemaining,
+  type CareBenefits,
+  type PropertySubscription,
+  type Tier,
+} from '../core/billing';
+import {
+  checkUsage,
+  hasFeature,
   type FeatureKey,
   type MeteredKey,
   type Plan,
-  type HomeAllowance,
-  type Subscription,
   type UsageVerdict,
 } from '../core/entitlements';
-import { useStore } from './store';
+import { subscriptionFor, useStore } from './store';
 
 /**
- * The one hook that answers "what does this household have?".
+ * What this household has, on the property they are currently looking at.
  *
- * Every gate in the app goes through here, so there is exactly one place that
- * can be wrong, and no screen has to know how trials, billing, or period resets
- * work. Selectors are per-slice and the result is memoised — zustand v5 compares
- * snapshots with `Object.is`, and returning a fresh object per render is how the
- * whole app loops until it blanks.
+ * Plans are per property now, so this hook is inherently about the *active*
+ * one: switching from a Care residence to a free rental has to change what the
+ * app offers, immediately and everywhere, or somebody sees a forecast for a
+ * house they are not paying to forecast.
+ *
+ * Selectors are per-slice and the result is memoised — zustand v5 compares
+ * snapshots with `Object.is`, and returning a fresh object per render is how
+ * the whole app loops until it blanks.
  */
 
 export interface PlanState {
+  /** The feature tier this property is on. `care` implies everything `plus` has. */
+  tier: Tier;
   plan: Plan;
   isPlus: boolean;
-  subscription: Subscription;
-  /** Days left if a trial is running. */
+  isCare: boolean;
+  subscription?: PropertySubscription;
   trialDaysLeft?: number;
-  /** Whether a first trial can still be offered. */
   canStartTrial: boolean;
-  /** Whether a feature is available on the current plan. */
   can: (feature: FeatureKey) => boolean;
-  /** Whether a metered action has headroom, and how much. */
   usage: (key: MeteredKey) => UsageVerdict;
-  /** How many properties this plan covers, and what another would cost. */
-  homes: HomeAllowance;
+  /** Care visits and discounts left this membership year. Undefined off Care. */
+  benefits?: CareBenefits;
+  /** What the whole account pays each month, across every property. */
+  monthlyTotalCents: number;
+  /** What adding this tier to one more property would cost. */
+  priceOfAdding: (tier: Exclude<Tier, 'free'>) => number;
 }
 
 export function usePlan(): PlanState {
-  const subscription = useStore((s) => s.subscription);
+  const subscriptions = useStore((s) => s.subscriptions);
+  const careVisits = useStore((s) => s.careVisits);
+  const activePropertyId = useStore((s) => s.activePropertyId);
   const usageState = useStore((s) => s.usage);
-  const documentCount = useStore((s) => s.documents.length);
-  const propertyCount = useStore((s) => s.properties.length);
+  const documents = useStore((s) => s.documents);
 
   return useMemo(() => {
     const asOf = today();
-    const plan = planFor(subscription, asOf);
-    const period = asOf.slice(0, 7);
+    const subscription = activePropertyId ? subscriptionFor(subscriptions, activePropertyId) : undefined;
+    const tier = tierFor(subscription, asOf);
 
     /*
-     * A stored period from a previous month means the counters have not been
-     * rolled yet — the roll happens on the next write. Reading them as zero here
-     * keeps the displayed allowance correct the moment the month turns, rather
-     * than on the next action.
+     * `Plan` is still the feature vocabulary — free vs plus — because that is
+     * what the entitlement tables are keyed on. Care is a commercial tier that
+     * happens to include everything Plus has, so it maps onto the same features
+     * rather than duplicating them.
      */
+    const plan: Plan = tierIncludesPlus(tier) ? 'plus' : 'free';
+    const period = asOf.slice(0, 7);
     const monthly = usageState.period === period ? usageState.monthly : undefined;
 
+    // Documents are a standing cap on what is stored *for this property*, so
+    // the count is scoped rather than being the whole account's filing cabinet.
+    const documentCount = documents.filter((d) => d.homeId === activePropertyId).length;
+
     return {
+      tier,
       plan,
-      isPlus: plan !== 'free',
+      isPlus: tierIncludesPlus(tier),
+      isCare: tier === 'care',
       subscription,
       trialDaysLeft: trialDaysRemaining(subscription, asOf),
       canStartTrial: trialAvailable(subscription),
       can: (feature: FeatureKey) => hasFeature(plan, feature),
-      homes: homeAllowance(plan, propertyCount),
       usage: (key: MeteredKey) =>
-        checkUsage(
-          plan,
-          key,
-          // Documents are a standing cap on what is stored, so the count is the
-          // record itself rather than a counter that could drift from it.
-          key === 'documents' ? documentCount : (monthly?.[key] ?? 0),
-        ),
+        checkUsage(plan, key, key === 'documents' ? documentCount : (monthly?.[key] ?? 0)),
+      benefits: subscription
+        ? careBenefits({ subscription, visits: careVisits, asOf })
+        : undefined,
+      monthlyTotalCents: priceSubscriptions(subscriptions, asOf).monthlyTotalCents,
+      priceOfAdding: (next: Exclude<Tier, 'free'>) => priceOfAdding(subscriptions, next, asOf),
     };
-  }, [subscription, usageState, documentCount, propertyCount]);
+  }, [subscriptions, careVisits, activePropertyId, usageState, documents]);
+}
+
+/** The plan on a property that is not the active one — for My Homes and Billing. */
+export function useTierOf(propertyId: string): Tier {
+  const subscriptions = useStore((s) => s.subscriptions);
+  return useMemo(() => tierFor(subscriptionFor(subscriptions, propertyId), today()), [
+    subscriptions,
+    propertyId,
+  ]);
 }

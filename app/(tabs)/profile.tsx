@@ -6,7 +6,7 @@ import { gatewayHealth } from '../../src/ai/client';
 import { today } from '../../src/core/dates';
 import { computeForecast } from '../../src/core/engine/forecast';
 import { summarizeSpend } from '../../src/core/engine/timeline';
-import { formatMoney } from '../../src/core/money';
+import { formatMoney, formatMoneyExact } from '../../src/core/money';
 import { buildSampleRecord } from '../../src/data/sampleHome';
 import { usePlan } from '../../src/state/plan';
 import { useHomeRecord, useHousehold, useStore } from '../../src/state/store';
@@ -39,7 +39,8 @@ export default function Profile() {
   const theme = useTheme();
   const router = useRouter();
   const record = useHomeRecord();
-  const { can, isPlus, canStartTrial, trialDaysLeft } = usePlan();
+  const { can, isPlus, isCare, canStartTrial, trialDaysLeft, monthlyTotalCents, benefits } = usePlan();
+  const activePropertyId = useStore((s) => s.activePropertyId);
   const propertyCount = useStore((s) => s.properties.length);
   const householdCount = useHousehold().length;
   const reset = useStore((s) => s.resetEverything);
@@ -121,9 +122,13 @@ export default function Profile() {
         </Row>
       </Card>
 
-      {/* The plan, stated once and where someone would look for it. */}
+      {/*
+        The plan on *this* home. Distinct from Billing & Membership, which is the
+        account: this card answers "what is this house on", which is the question
+        you have while looking at this house.
+      */}
       <Card
-        onPress={() => router.push('/plus')}
+        onPress={() => router.push(activePropertyId ? `/billing/${activePropertyId}` : '/plus')}
         tone={isPlus ? undefined : theme.surfaceSunken}
         raised={isPlus ? 2 : 1}
       >
@@ -140,12 +145,20 @@ export default function Profile() {
               ) : null}
             </Row>
             <Small>
-              {isPlus
-                ? 'Forecasting, warranty alerts, the full health breakdown, and unlimited questions are on.'
-                : canStartTrial
-                  ? 'Know what this house will need, when, and what to set aside for it. Free for 30 days.'
-                  : 'Forecasting, warranty alerts, and the full health breakdown.'}
+              {isCare
+                ? `Dwella Care on ${record.home.nickname}. Everything in Dwella+, plus seasonal visits and member pricing.`
+                : isPlus
+                  ? `Dwella+ on ${record.home.nickname}. Forecasting, warranty alerts, the full health breakdown, and unlimited questions.`
+                  : canStartTrial
+                    ? 'Know what this house will need, when, and what to set aside for it. Free for 30 days.'
+                    : 'Forecasting, warranty alerts, and the full health breakdown.'}
             </Small>
+            {benefits ? (
+              <Tertiary>
+                {benefits.seasonalVisitsRemaining} of {benefits.seasonalVisitsIncluded} seasonal
+                visits left · {benefits.handymanDiscountPercent}% handyman discount
+              </Tertiary>
+            ) : null}
           </View>
           <Ionicons name="chevron-forward" size={16} color={theme.textTertiary} />
         </Row>
@@ -205,6 +218,20 @@ export default function Profile() {
             onPress={() => router.push('/settings')}
           />
           <Divider inset={48} />
+          {/*
+            The account areas, in the order somebody looks for them: the people,
+            then the places, then what it costs. Billing is a first-class area
+            rather than a row inside Settings — with more than one property it is
+            the only screen that answers "what am I actually paying for".
+          */}
+          <ListRow
+            icon="people-outline"
+            title="Household & Access"
+            subtitle={
+              householdCount === 1 ? 'Just you' : `${householdCount} people have access`
+            }
+            onPress={() => router.push('/household')}
+          />
           <ListRow
             icon="business-outline"
             title="My Homes"
@@ -212,12 +239,14 @@ export default function Profile() {
             onPress={() => router.push('/homes')}
           />
           <ListRow
-            icon="people-outline"
-            title="Household"
+            icon="card-outline"
+            title="Billing & Membership"
             subtitle={
-              householdCount === 1 ? 'Just you' : `${householdCount} people have access`
+              monthlyTotalCents > 0
+                ? `${formatMoneyExact(monthlyTotalCents)} a month across ${propertyCount === 1 ? 'this home' : `${propertyCount} homes`}`
+                : 'No paid plans yet'
             }
-            onPress={() => router.push('/household')}
+            onPress={() => router.push('/billing')}
           />
           <ListRow
             icon="settings-outline"

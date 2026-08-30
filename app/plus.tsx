@@ -46,7 +46,8 @@ export default function Plus() {
   const theme = useTheme();
   const router = useRouter();
   const record = useHomeRecord();
-  const { isPlus, subscription, trialDaysLeft, canStartTrial } = usePlan();
+  const { isPlus, subscription, trialDaysLeft, canStartTrial, priceOfAdding } = usePlan();
+  const activePropertyId = useStore((s) => s.activePropertyId);
   const beginTrial = useStore((s) => s.beginTrial);
   const cancelSubscription = useStore((s) => s.cancelSubscription);
   const [selected, setSelected] = useState<'monthly' | 'annual'>('annual');
@@ -112,7 +113,7 @@ export default function Plus() {
             <Text style={[type.small, { color: 'rgba(255,255,255,0.72)' }]}>
               {trialDaysLeft !== undefined
                 ? `${trialDaysLeft} ${trialDaysLeft === 1 ? 'day' : 'days'} left${
-                    subscription.trialEndsOn ? `, until ${formatDate(subscription.trialEndsOn)}` : ''
+                    subscription?.trialEndsOn ? `, until ${formatDate(subscription.trialEndsOn)}` : ''
                   }. Everything below is on.`
                 : 'Dwella is watching this house for you.'}
             </Text>
@@ -142,8 +143,8 @@ export default function Plus() {
             <SectionTitle title="Your plan" />
             <Small>
               {trialDaysLeft !== undefined
-                ? `A free trial, ending ${subscription.trialEndsOn ? formatDate(subscription.trialEndsOn) : 'soon'}. Nothing will be charged — in-app purchase is not wired up in this build, so the plan simply returns to Dwella Free when the trial ends.`
-                : subscription.renewsOn
+                ? `A free trial, ending ${subscription?.trialEndsOn ? formatDate(subscription.trialEndsOn) : 'soon'}. Nothing will be charged — in-app purchase is not wired up in this build, so the plan simply returns to Dwella Free when the trial ends.`
+                : subscription?.renewsOn
                   ? `Renews ${formatDate(subscription.renewsOn)}.`
                   : 'Active.'}
             </Small>
@@ -157,7 +158,11 @@ export default function Plus() {
                   'Your home record, history, and reminders stay exactly as they are. You lose the forecast, warranty alerts, and the full health breakdown.',
                   [
                     { text: 'Keep it', style: 'cancel' },
-                    { text: 'End it', style: 'destructive', onPress: cancelSubscription },
+                    {
+                      text: 'End it',
+                      style: 'destructive',
+                      onPress: () => activePropertyId && cancelSubscription(activePropertyId),
+                    },
                   ],
                 )
               }

@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { View } from 'react-native';
 import { PROPERTY_TYPES, type PropertyType } from '../../src/core/account';
 import type { Home } from '../../src/core/types';
+import { formatMoneyExact } from '../../src/core/money';
 import { usePlan } from '../../src/state/plan';
 import { useStore } from '../../src/state/store';
 import {
@@ -41,7 +42,7 @@ const CLIMATES: { value: Home['climate']; label: string }[] = [
 export default function NewHome() {
   const router = useRouter();
   const addProperty = useStore((s) => s.addProperty);
-  const { homes } = usePlan();
+  const { priceOfAdding } = usePlan();
 
   const [nickname, setNickname] = useState('');
   const [propertyType, setPropertyType] = useState<PropertyType>('secondary');
@@ -83,13 +84,11 @@ export default function NewHome() {
       </View>
 
       {/* What it costs, before any of the form is filled in. */}
-      {homes.count + 1 > homes.included ? (
-        <Notice icon="card-outline">
-          This is home {homes.count + 1}. Your plan includes {homes.included}, so this one adds{' '}
-          {homes.extraPriceLabel} a month. Billing is not wired up in this build, so nothing will be
-          charged.
-        </Notice>
-      ) : null}
+      <Notice icon="card-outline">
+        Adding a home is free — it starts on Dwella Free with its own record, schedule, and
+        reminders. Plans are per home and billed separately: Dwella+ here would be{' '}
+        {formatMoneyExact(priceOfAdding('plus'))} a month.
+      </Notice>
 
       <Card>
         <SectionTitle title="What kind of property?" />

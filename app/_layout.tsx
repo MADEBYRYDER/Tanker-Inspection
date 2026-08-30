@@ -51,7 +51,9 @@ export default function RootLayout() {
         <Stack.Screen name="settings" options={{ title: 'Settings' }} />
         <Stack.Screen name="homes" options={{ title: 'My Homes' }} />
         <Stack.Screen name="home/new" options={{ title: 'Add a Home' }} />
-        <Stack.Screen name="household" options={{ title: 'Household' }} />
+        <Stack.Screen name="household" options={{ title: 'Household & Access' }} />
+        <Stack.Screen name="billing/index" options={{ title: 'Billing & Membership' }} />
+        <Stack.Screen name="billing/[propertyId]" options={{ title: 'Membership' }} />
       </Stack>
     </SafeAreaProvider>
   );
