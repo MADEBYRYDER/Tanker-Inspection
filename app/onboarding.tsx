@@ -20,6 +20,7 @@ import {
   Screen,
   SectionTitle,
 } from '../src/ui/components';
+import { DwellaLockup } from '../src/ui/logo';
 import { spacing } from '../src/ui/theme';
 
 const CLIMATES: { value: Home['climate']; label: string; hint: string }[] = [
@@ -86,8 +87,10 @@ export default function Onboarding() {
 
   return (
     <Screen>
-      <View style={{ gap: spacing.sm, marginTop: spacing.xl }}>
-        <Display>Dwella</Display>
+      <View style={{ gap: spacing.lg, marginTop: spacing.xl }}>
+        {/* The full lockup, once — this is the only screen where somebody is
+            meeting the product rather than using it. */}
+        <DwellaLockup size="lg" />
         <Body>
           A permanent record for your house — what it is made of, what has been done to it, what it
           needs next, and what that is likely to cost.

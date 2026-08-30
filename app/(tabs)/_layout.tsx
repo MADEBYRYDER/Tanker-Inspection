@@ -5,6 +5,9 @@ import { Platform, StyleSheet, View } from 'react-native';
 import { Touchable } from '../../src/ui/motion';
 import { elevation, radius, useTheme } from '../../src/ui/theme';
 
+/** The scan chooser's ground. Shared with the screen itself so they meet cleanly. */
+export const SCAN_GROUND = '#071624';
+
 /**
  * Five destinations, and the middle one is a camera.
  *
@@ -63,6 +66,18 @@ export default function TabsLayout() {
         options={{
           title: '',
           tabBarButton: (props) => <ScanButton onPress={() => props.onPress?.({} as never)} />,
+          /*
+           * The chooser is the app's one full-bleed dark screen, and the glass
+           * bar reads as a light strip stuck to the bottom of it. Painting the
+           * bar and the scene the same navy keeps it one surface, with the tab
+           * labels still there so leaving is a tap rather than a hunt.
+           */
+          sceneStyle: { backgroundColor: SCAN_GROUND },
+          tabBarBackground: () => (
+            <View style={{ flex: 1, backgroundColor: SCAN_GROUND }} />
+          ),
+          tabBarInactiveTintColor: 'rgba(255,255,255,0.5)',
+          tabBarActiveTintColor: '#FFFFFF',
         }}
       />
       <Tabs.Screen
@@ -130,7 +145,10 @@ function ScanButton({ onPress }: { onPress: () => void }) {
             width: 60,
             height: 60,
             borderRadius: radius.pill,
-            backgroundColor: theme.ink,
+            // The one place the sage leads rather than accents: the scan button
+            // is the app's single primary action and the mark's own green makes
+            // it read as Dwella's, not as a generic FAB.
+            backgroundColor: theme.scanGreen,
             alignItems: 'center',
             justifyContent: 'center',
             // Lifted above the bar so it reads as the primary action, not a tab.
@@ -141,7 +159,7 @@ function ScanButton({ onPress }: { onPress: () => void }) {
           elevation(theme, 3),
         ]}
       >
-        <Ionicons name="scan-outline" size={26} color={theme.onInk} />
+        <Ionicons name="scan-outline" size={26} color="#FFFFFF" />
       </Touchable>
     </View>
   );

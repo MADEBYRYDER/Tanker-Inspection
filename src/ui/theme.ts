@@ -59,68 +59,96 @@ export interface Theme {
   inkElevated: string;
   onInk: string;
 
+  /*
+   * The brand marks, fixed across both themes.
+   *
+   * Everything above is a role that flips between light and dark; these three
+   * are the logo's own colours and must not. A mark that changes hue with the
+   * OS setting is a different mark.
+   */
+  brandNavy: string;
+  brandSage: string;
+  /** The sage lifted enough to hold on the navy hero. */
+  brandSageLight: string;
+  /** The scan button. The only place the sage is a fill rather than an accent. */
+  scanGreen: string;
+
   shadowAmbient: string;
   shadowKey: string;
 }
 
+const BRAND_NAVY = '#1B2A3E';
+const BRAND_SAGE = '#6F7B5F';
+const BRAND_SAGE_LIGHT = '#9DAC88';
+
 const light: Theme = {
   dark: false,
-  bg: '#F7F6F2',
-  bgAlt: '#F1EFE9',
+  bg: '#FCF8F3',
+  bgAlt: '#F6F1EA',
   surface: '#FFFFFF',
   surfaceRaised: '#FFFFFF',
-  surfaceSunken: '#F2F0EB',
-  glass: 'rgba(255,255,255,0.72)',
-  hairline: 'rgba(28,28,30,0.06)',
-  border: 'rgba(28,28,30,0.10)',
-  text: '#15171A',
-  textSecondary: '#5F6570',
-  textTertiary: '#9AA0A8',
-  sage: '#3F7A5E',
-  sageSoft: '#E6F0E9',
-  sageDeep: '#2A5A44',
-  amber: '#9A6612',
-  amberSoft: '#FAEFDC',
-  red: '#AE3B31',
-  redSoft: '#FBEAE7',
-  blue: '#2F6285',
-  blueSoft: '#E8F0F6',
-  ink: '#18231D',
-  inkElevated: '#243228',
+  surfaceSunken: '#F4EFE8',
+  glass: 'rgba(255,255,255,0.74)',
+  hairline: 'rgba(27,42,62,0.07)',
+  border: 'rgba(27,42,62,0.12)',
+  text: '#16222F',
+  textSecondary: '#5A6675',
+  textTertiary: '#95A0AC',
+  // Sage is the brand olive, darkened just enough to pass as body-adjacent text.
+  sage: '#5C6A4C',
+  sageSoft: '#EBEEE4',
+  sageDeep: '#46543A',
+  amber: '#A9741A',
+  amberSoft: '#FAEEDA',
+  red: '#B0372B',
+  redSoft: '#FBE8E5',
+  blue: '#31607F',
+  blueSoft: '#E9F0F5',
+  // The hero and every primary fill: the navy off the logo, deepened.
+  ink: '#12202E',
+  inkElevated: '#1B2A3E',
   onInk: '#FFFFFF',
-  shadowAmbient: 'rgba(21,23,26,1)',
-  shadowKey: 'rgba(21,23,26,1)',
+  shadowAmbient: 'rgba(18,32,46,1)',
+  shadowKey: 'rgba(18,32,46,1)',
+  brandNavy: BRAND_NAVY,
+  brandSage: BRAND_SAGE,
+  brandSageLight: BRAND_SAGE_LIGHT,
+  scanGreen: '#587052',
 };
 
 const dark: Theme = {
   dark: true,
-  bg: '#0D100E',
-  bgAlt: '#111512',
+  bg: '#07131E',
+  bgAlt: '#0A1826',
   // In dark mode elevation is carried by lightness, not shadow — shadows are
   // invisible on a near-black ground, so each layer steps up instead.
-  surface: '#171B18',
-  surfaceRaised: '#1E2320',
-  surfaceSunken: '#121614',
-  glass: 'rgba(23,27,24,0.72)',
-  hairline: 'rgba(255,255,255,0.06)',
-  border: 'rgba(255,255,255,0.11)',
-  text: '#ECEFEC',
-  textSecondary: '#9DA5A0',
-  textTertiary: '#6B7370',
-  sage: '#79BE97',
-  sageSoft: '#17281F',
-  sageDeep: '#9BD4B2',
-  amber: '#DEAE5C',
-  amberSoft: '#2A2317',
+  surface: '#0F1E2C',
+  surfaceRaised: '#16283A',
+  surfaceSunken: '#0B1926',
+  glass: 'rgba(15,30,44,0.74)',
+  hairline: 'rgba(255,255,255,0.07)',
+  border: 'rgba(255,255,255,0.12)',
+  text: '#E9EEF3',
+  textSecondary: '#9AA8B6',
+  textTertiary: '#68788A',
+  sage: '#A8BA92',
+  sageSoft: '#1B2619',
+  sageDeep: '#C0CFAC',
+  amber: '#D8A34F',
+  amberSoft: '#2A2113',
   red: '#E58A81',
-  redSoft: '#2C1B19',
-  blue: '#84B4D4',
-  blueSoft: '#15232C',
-  ink: '#EDF0ED',
-  inkElevated: '#DDE2DE',
-  onInk: '#0D100E',
+  redSoft: '#2E1A18',
+  blue: '#7FB3D6',
+  blueSoft: '#12242F',
+  ink: '#E9EEF3',
+  inkElevated: '#D6DEE6',
+  onInk: '#07131E',
   shadowAmbient: 'rgba(0,0,0,1)',
   shadowKey: 'rgba(0,0,0,1)',
+  brandNavy: BRAND_NAVY,
+  brandSage: BRAND_SAGE,
+  brandSageLight: BRAND_SAGE_LIGHT,
+  scanGreen: '#63805B',
 };
 
 export function useTheme(): Theme {
@@ -218,9 +246,11 @@ export type GradientStops = readonly [string, string, ...string[]];
  * as material (a dark surface catching light) rather than as decoration.
  */
 export function heroGradient(theme: Theme): GradientStops {
+  // The hero is the brand navy, deepening downward so the score ring at the top
+  // sits on the lighter end of it.
   return theme.dark
-    ? (['#1B2620', '#141A16', '#0F1411'] as const)
-    : (['#2C4034', '#1E2C24', '#18231D'] as const);
+    ? (['#12283C', '#0B1A28', '#07131E'] as const)
+    : (['#22394F', '#132434', '#071624'] as const);
 }
 
 /** A soft tint behind an icon or tile, derived from a status colour. */
@@ -277,18 +307,27 @@ export function toneFor(theme: Theme, key: StatusKey, label?: string): Tone {
  * "42.3% health" invites them to argue with a number the app cannot defend to that
  * precision.
  */
-export function healthStatus(status: HealthStatus): { key: StatusKey; label: string } {
+/**
+ * `short` is for places with a tile's worth of room rather than a row's —
+ * "Planning recommended" truncates to "Planning re…", which reads as broken
+ * text rather than as a status.
+ */
+export function healthStatus(status: HealthStatus): {
+  key: StatusKey;
+  label: string;
+  short: string;
+} {
   switch (status) {
     case 'good':
-      return { key: 'good', label: 'Good' };
+      return { key: 'good', label: 'Good', short: 'Good' };
     case 'monitor':
-      return { key: 'good', label: 'Aging normally' };
+      return { key: 'good', label: 'Aging normally', short: 'Good' };
     case 'aging':
-      return { key: 'attention', label: 'Needs attention' };
+      return { key: 'attention', label: 'Needs attention', short: 'Plan ahead' };
     case 'plan_replacement':
-      return { key: 'urgent', label: 'Planning recommended' };
+      return { key: 'urgent', label: 'Planning recommended', short: 'Attention' };
     default:
-      return { key: 'neutral', label: 'Not enough info' };
+      return { key: 'neutral', label: 'Not enough info', short: 'Unknown' };
   }
 }
 
@@ -310,9 +349,17 @@ export function urgencyStatus(
 }
 
 /** Overall score → band. Deliberately coarse; the number is not that precise. */
+/*
+ * Fair is amber, not green.
+ *
+ * It used to share the 'good' tone, which put the word FAIR in reassuring sage
+ * on a house with several systems near the end of their life. A band exists to
+ * be read at a glance and colour is most of that reading — if "Fair" looks the
+ * same as "Good", the band has told the owner nothing.
+ */
 export function scoreBand(score: number): { key: StatusKey; label: string } {
   if (score >= 80) return { key: 'good', label: 'Good' };
-  if (score >= 65) return { key: 'good', label: 'Fair' };
+  if (score >= 65) return { key: 'attention', label: 'Fair' };
   if (score >= 50) return { key: 'attention', label: 'Needs attention' };
   return { key: 'urgent', label: 'Planning needed' };
 }

@@ -1081,3 +1081,63 @@ export function StickyBar({ children }: { children: ReactNode }) {
     </View>
   );
 }
+
+/**
+ * Underlined segmented tabs.
+ *
+ * Chips and underlined tabs both switch a filter, but they carry different
+ * promises: a chip row reads as optional refinement you can leave alone, an
+ * underlined bar reads as "the screen has these modes and you are in one of
+ * them". These screens are the second kind — there is no unfiltered state, so
+ * the control should not look like one.
+ *
+ * Scrolls horizontally rather than compressing, because a label truncated to
+ * "Inspecti…" costs more than a little sideways movement.
+ */
+export function SegmentedTabs<T extends string>({
+  options,
+  value,
+  onChange,
+}: {
+  options: { key: T; label: string }[];
+  value: T;
+  onChange: (key: T) => void;
+}) {
+  const theme = useTheme();
+  return (
+    <ScrollView
+      horizontal
+      showsHorizontalScrollIndicator={false}
+      contentContainerStyle={{ gap: spacing.xl }}
+      style={{ borderBottomWidth: 1, borderBottomColor: theme.hairline }}
+    >
+      {options.map((option) => {
+        const active = option.key === value;
+        return (
+          <Touchable
+            key={option.key}
+            onPress={() => onChange(option.key)}
+            accessibilityLabel={option.label}
+            scaleTo={0.98}
+            style={{
+              paddingBottom: 10,
+              borderBottomWidth: 2,
+              // Transparent rather than absent, so the row does not shift by two
+              // pixels as the selection moves.
+              borderBottomColor: active ? theme.text : 'transparent',
+            }}
+          >
+            <Text
+              style={[
+                type.bodyStrong,
+                { color: active ? theme.text : theme.textTertiary },
+              ]}
+            >
+              {option.label}
+            </Text>
+          </Touchable>
+        );
+      })}
+    </ScrollView>
+  );
+}

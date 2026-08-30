@@ -1,254 +1,153 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useMemo } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
-import { isGatewayConfigured } from '../../src/ai/client';
-import { relativeDayLabel, today } from '../../src/core/dates';
+import { ScrollView, Text, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { guidedProgress } from '../../src/core/engine/guided';
 import { useHomeRecord } from '../../src/state/store';
-import {
-  Card,
-  Divider,
-  Enter,
-  HeroPanel,
-  IconTile,
-  Notice,
-  Row,
-  Screen,
-  ScoreRing,
-  SectionTitle,
-  Small,
-  Tertiary,
-  Touchable,
-} from '../../src/ui/components';
-import {
-  CATEGORY_ICON,
-  CATEGORY_LABEL,
-  elevation,
-  radius,
-  spacing,
-  tabular,
-  type,
-  useTheme,
-  type StatusKey,
-} from '../../src/ui/theme';
+import { Row, Touchable } from '../../src/ui/components';
+import { DwellaMark } from '../../src/ui/logo';
+import { radius, spacing, type, useTheme } from '../../src/ui/theme';
+import { SCAN_GROUND } from './_layout';
 
 /**
- * The scan hub.
+ * The scan chooser.
  *
- * The product's core loop is "see something, scan it", so this screen has to make
- * the four ways in unmissable and the next step obvious. Four large tiles rather
- * than a menu; twenty small entries would expose more and get used less.
+ * Everything the camera can start, on one dark screen with nothing else on it.
  *
- * The hero carries record completeness, because the honest answer to "what should
- * I scan next" is usually "the area you haven't covered yet" — and a percentage
- * that moves is what gets someone to finish an hour-long job across a weekend.
+ * Deliberately not a dashboard. This is reached by pressing the one raised
+ * button in the tab bar, which is a decisive gesture, and answering it with a
+ * screen of progress meters and recent activity turns a decision into browsing.
+ * Four options, phrased as the thing the person is holding their phone up to do
+ * — "something doesn't look right" is how a homeowner says it, not "problem
+ * triage".
+ *
+ * The dark ground is doing work too: it is the only full-bleed dark screen in
+ * the app, so it reads as a mode you have entered and will leave, which is what
+ * the close control at the top promises.
  */
-export default function ScanHub() {
+export default function ScanChooser() {
   const theme = useTheme();
   const router = useRouter();
   const record = useHomeRecord();
-  const asOf = today();
 
   const progress = useMemo(() => (record ? guidedProgress(record) : undefined), [record]);
 
-  const recent = useMemo(() => {
-    if (!record) return [];
-    return [...record.components]
-      .filter((c) => !c.retiredOn)
-      .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
-      .slice(0, 3);
-  }, [record]);
-
-  const complete = progress !== undefined && progress.percent >= 100;
+  const options = [
+    {
+      key: 'equipment',
+      icon: 'camera-outline' as const,
+      tint: theme.scanGreen,
+      title: 'Add something\nto my home',
+      body: 'Scan equipment or appliances',
+      go: () => router.push('/scan/equipment'),
+    },
+    {
+      key: 'problem',
+      icon: 'search-outline' as const,
+      tint: '#C08A22',
+      title: 'Something doesn’t\nlook right',
+      body: 'Ask Dwella about a problem',
+      go: () => router.push('/problem'),
+    },
+    {
+      key: 'document',
+      icon: 'document-text-outline' as const,
+      tint: '#2E5C82',
+      title: 'Add a receipt\nor document',
+      body: 'Store important paperwork',
+      go: () => router.push('/document'),
+    },
+    {
+      key: 'guided',
+      icon: 'home-outline' as const,
+      tint: theme.brandSage,
+      title: 'Scan My Home',
+      // The one option whose subtitle can say something specific about this
+      // house rather than describing itself.
+      body:
+        progress && progress.done.length > 0
+          ? `Guided setup — ${progress.done.length} of ${progress.steps.length} areas covered`
+          : 'Guided whole-home setup',
+      go: () => router.push('/scan/guided'),
+    },
+  ];
 
   return (
-    <Screen bleedTop gap={spacing.xl}>
-      <HeroPanel>
-        <View style={{ gap: spacing.xl }}>
-          <View style={{ gap: 3 }}>
-            <Text style={[type.title, { color: '#FFFFFF' }]}>Scan</Text>
-            <Text style={[type.small, { color: 'rgba(255,255,255,0.68)' }]}>
-              Point your camera at it and the record fills itself in.
-            </Text>
-          </View>
-
-          {progress ? (
-            <Touchable onPress={() => router.push('/scan/guided')} scaleTo={0.985}>
-              <Row gap={spacing.xl}>
-                <ScoreRing
-                  score={progress.percent}
-                  label={complete ? 'Complete' : 'Covered'}
-                  status="good"
-                  size={106}
-                  onDark
-                />
-                <View style={{ flex: 1, gap: spacing.sm }}>
-                  <Text style={[type.label, { color: 'rgba(255,255,255,0.5)' }]}>HOME RECORD</Text>
-                  <Text style={[type.small, { color: 'rgba(255,255,255,0.86)' }]}>
-                    {complete
-                      ? `All ${progress.steps.length} areas covered. Keep adding equipment any time — every addition sharpens the schedule and the forecast.`
-                      : `${progress.done.length} of ${progress.steps.length} areas covered. Next up: ${progress.next?.label}.`}
-                  </Text>
-                  {!complete ? (
-                    <Row gap={4}>
-                      <Text style={[type.smallStrong, { color: '#FFFFFF' }]}>Continue</Text>
-                      <Ionicons name="chevron-forward" size={13} color="#FFFFFF" />
-                    </Row>
-                  ) : null}
-                </View>
-              </Row>
+    <View style={{ flex: 1, backgroundColor: SCAN_GROUND }}>
+      <SafeAreaView style={{ flex: 1 }} edges={['top', 'bottom']}>
+        <ScrollView
+          contentContainerStyle={{
+            padding: spacing.xl,
+            paddingBottom: spacing.xxxl,
+            gap: spacing.xl,
+          }}
+        >
+          <Row justify="space-between" align="center">
+            <Touchable
+              onPress={() => router.push('/(tabs)')}
+              accessibilityLabel="Close"
+              scaleTo={0.9}
+            >
+              <Ionicons name="close" size={26} color="rgba(255,255,255,0.8)" />
             </Touchable>
-          ) : null}
-        </View>
-      </HeroPanel>
+            <DwellaMark size={30} house="#FFFFFF" arc={theme.brandSageLight} />
+            <View style={{ width: 26 }} />
+          </Row>
 
-      {/* The four ways in, as a 2×2 grid. */}
-      <Enter>
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md }}>
-          <ScanTile
-            icon="camera-outline"
-            title="Add Equipment"
-            subtitle="An appliance, an HVAC label, any home system"
-            onPress={() => router.push('/scan/equipment')}
-          />
-          <ScanTile
-            icon="alert-circle-outline"
-            title="Something's Wrong"
-            subtitle="Show us a problem and get it triaged"
-            status="attention"
-            onPress={() => router.push('/problem')}
-          />
-          <ScanTile
-            icon="receipt-outline"
-            title="Add Receipt"
-            subtitle="An invoice, receipt, or warranty"
-            status="info"
-            onPress={() => router.push('/document')}
-          />
-          <ScanTile
-            icon="home-outline"
-            title="Scan My Home"
-            subtitle="Guided walkthrough, area by area"
-            status="good"
-            onPress={() => router.push('/scan/guided')}
-          />
-        </View>
-      </Enter>
-
-      {/* What to point it at next — the specific area, not generic advice. */}
-      {progress?.next ? (
-        <Enter index={1}>
-          <Card onPress={() => router.push('/scan/guided')} raised={1}>
-            <Row justify="space-between">
-              <Tertiary>NEXT AREA</Tertiary>
-              <Text style={[{ fontSize: 12.5, fontWeight: '700', color: theme.sage }, tabular]}>
-                {progress.percent}%
-              </Text>
-            </Row>
-            <Row gap={spacing.md} align="flex-start">
-              <IconTile icon={progress.next.icon as never} status="neutral" size={40} />
-              <View style={{ flex: 1, gap: 2 }}>
-                <Text style={[type.subheading, { color: theme.text }]}>{progress.next.label}</Text>
-                <Small numberOfLines={2}>{progress.next.prompt}</Small>
-              </View>
-              <Ionicons name="chevron-forward" size={16} color={theme.textTertiary} />
-            </Row>
-          </Card>
-        </Enter>
-      ) : null}
-
-      {recent.length > 0 ? (
-        <Enter index={2}>
-          <View style={{ gap: spacing.md }}>
-            <SectionTitle title="Recently added" />
-            <Card padding={spacing.lg}>
-              {recent.map((component, index) => (
-                <View key={component.id} style={{ gap: spacing.md }}>
-                  {index > 0 ? <Divider inset={50} /> : null}
-                  <Touchable
-                    onPress={() => router.push(`/component/${component.id}`)}
-                    scaleTo={0.99}
-                  >
-                    <Row gap={spacing.md} justify="space-between">
-                      <IconTile
-                        icon={(CATEGORY_ICON[component.category] ?? 'cube-outline') as never}
-                        size={38}
-                      />
-                      <View style={{ flex: 1, gap: 1 }}>
-                        <Text style={[type.bodyStrong, { color: theme.text }]} numberOfLines={1}>
-                          {component.name}
-                        </Text>
-                        <Tertiary numberOfLines={1}>
-                          {CATEGORY_LABEL[component.category]} ·{' '}
-                          {relativeDayLabel(asOf, component.createdAt.slice(0, 10))}
-                        </Tertiary>
-                      </View>
-                      <Ionicons name="chevron-forward" size={15} color={theme.textTertiary} />
-                    </Row>
-                  </Touchable>
-                </View>
-              ))}
-            </Card>
+          <View style={{ alignItems: 'center', gap: spacing.md }}>
+            <Text
+              style={[type.title, { color: '#FFFFFF', textAlign: 'center', lineHeight: 32 }]}
+            >
+              What would you{'\n'}like to do?
+            </Text>
+            <View
+              style={{ width: 34, height: 2, backgroundColor: 'rgba(255,255,255,0.22)' }}
+            />
           </View>
-        </Enter>
-      ) : null}
 
-      {!isGatewayConfigured() ? (
-        <Enter index={3}>
-          <Notice tone="neutral" icon="cloud-offline-outline">
-            Automatic reading needs an AI gateway, which is not configured on this build. You can
-            still add everything by hand — scheduling, health, and forecasting work identically
-            either way.
-          </Notice>
-        </Enter>
-      ) : null}
-    </Screen>
-  );
-}
-
-/**
- * One of the four entry tiles. Deliberately large and square-ish: this is the
- * screen someone opens while standing in front of the thing they want to record.
- */
-function ScanTile({
-  icon,
-  title,
-  subtitle,
-  onPress,
-  status = 'neutral',
-}: {
-  icon: keyof typeof Ionicons.glyphMap;
-  title: string;
-  subtitle: string;
-  onPress: () => void;
-  status?: StatusKey;
-}) {
-  const theme = useTheme();
-  return (
-    <Touchable
-      onPress={onPress}
-      haptic="medium"
-      style={[
-        {
-          width: '48%',
-          minHeight: 168,
-          backgroundColor: theme.surface,
-          borderRadius: radius.lg,
-          borderWidth: StyleSheet.hairlineWidth,
-          borderColor: theme.hairline,
-          padding: spacing.lg,
-          gap: spacing.md,
-          justifyContent: 'space-between',
-        },
-        elevation(theme, 1),
-      ]}
-    >
-      <IconTile icon={icon} status={status} size={46} />
-      <View style={{ gap: 3 }}>
-        <Text style={[type.subheading, { color: theme.text }]}>{title}</Text>
-        <Tertiary numberOfLines={2}>{subtitle}</Tertiary>
-      </View>
-    </Touchable>
+          <View
+            style={{
+              backgroundColor: theme.dark ? theme.surface : '#FFFFFF',
+              borderRadius: radius.lg,
+              paddingHorizontal: spacing.lg,
+            }}
+          >
+            {options.map((option, index) => (
+              <View key={option.key}>
+                {index > 0 ? (
+                  <View style={{ height: 1, backgroundColor: theme.hairline, marginLeft: 58 }} />
+                ) : null}
+                <Touchable onPress={option.go} scaleTo={0.99} accessibilityLabel={option.body}>
+                  <Row gap={spacing.md} align="center" style={{ paddingVertical: spacing.lg }}>
+                    <View
+                      style={{
+                        width: 42,
+                        height: 42,
+                        borderRadius: radius.sm,
+                        backgroundColor: option.tint,
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                    >
+                      <Ionicons name={option.icon} size={21} color="#FFFFFF" />
+                    </View>
+                    <View style={{ flex: 1, gap: 2 }}>
+                      <Text style={[type.bodyStrong, { color: theme.text, lineHeight: 20 }]}>
+                        {option.title}
+                      </Text>
+                      <Text style={[type.small, { color: theme.textSecondary }]}>
+                        {option.body}
+                      </Text>
+                    </View>
+                    <Ionicons name="chevron-forward" size={17} color={theme.textTertiary} />
+                  </Row>
+                </Touchable>
+              </View>
+            ))}
+          </View>
+        </ScrollView>
+      </SafeAreaView>
+    </View>
   );
 }

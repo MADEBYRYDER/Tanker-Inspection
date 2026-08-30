@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useMemo } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
 import { formatDate, relativeDayLabel, today } from '../../src/core/dates';
 import { resolveComponentAge } from '../../src/core/engine/age';
 import { computeForecast } from '../../src/core/engine/forecast';
@@ -10,7 +10,12 @@ import { computeRecordConfidence } from '../../src/core/engine/recordConfidence'
 import { coverageSummary, warrantyAlerts } from '../../src/core/engine/warrantyIntelligence';
 import { generateTasks } from '../../src/core/engine/schedule';
 import { formatApprox, formatMoney } from '../../src/core/money';
-import type { ComponentCategory, HomeComponent, ScheduledTask } from '../../src/core/types';
+import type {
+  ComponentCategory,
+  ComponentHealth,
+  HomeComponent,
+  ScheduledTask,
+} from '../../src/core/types';
 import { usePlan } from '../../src/state/plan';
 import { useHomeRecord, useStore } from '../../src/state/store';
 import {
@@ -36,11 +41,13 @@ import {
   Title,
   Touchable,
 } from '../../src/ui/components';
+import { DwellaLockup, DwellaMark } from '../../src/ui/logo';
 import { PlusGate } from '../../src/ui/plus';
 import { RecordConfidenceCard } from '../../src/ui/recordConfidence';
 import {
   CATEGORY_ICON,
   CATEGORY_LABEL,
+  elevation,
   greeting,
   healthStatus,
   radius,
@@ -124,6 +131,12 @@ export default function Dashboard() {
   );
   const attentionCount = attentionSystems.length + attentionTasks.length;
   const comingUp = tasks.filter((t) => !attentionTasks.includes(t)).slice(0, 4);
+  /*
+   * Overdue work first, then what is coming. Equipment that is merely ageing is
+   * deliberately not in this list — it has no date and nothing to do today, and
+   * the Home Health card above already counts it and links to the breakdown.
+   */
+  const dueSoon = [...attentionTasks, ...comingUp].slice(0, 5);
 
   const band = scoreBand(health.score);
   const firstName = record.viewer?.displayName.trim().split(' ')[0];
@@ -133,10 +146,48 @@ export default function Dashboard() {
     <Screen bleedTop gap={spacing.xl}>
       {/* ---- Hero -------------------------------------------------------- */}
       <HeroPanel>
-        <View style={{ gap: spacing.xl }}>
+        <View style={{ gap: spacing.lg }}>
+          {/* Brand, and the one thing on this screen that is genuinely a nudge. */}
+          <Row justify="space-between" align="center">
+            <DwellaLockup size="sm" onDark />
+            <Touchable
+              onPress={() => router.push('/(tabs)/tasks')}
+              accessibilityLabel={
+                attentionCount > 0
+                  ? `${attentionCount} things need attention`
+                  : 'Nothing needs attention'
+              }
+              scaleTo={0.9}
+            >
+              <View>
+                <Ionicons name="notifications-outline" size={22} color="rgba(255,255,255,0.82)" />
+                {attentionCount > 0 ? (
+                  <View
+                    style={{
+                      position: 'absolute',
+                      top: -4,
+                      right: -5,
+                      minWidth: 17,
+                      height: 17,
+                      borderRadius: radius.pill,
+                      paddingHorizontal: 4,
+                      backgroundColor: theme.red,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    <Text style={{ color: '#FFFFFF', fontSize: 10.5, fontWeight: '700' }}>
+                      {attentionCount > 9 ? '9+' : attentionCount}
+                    </Text>
+                  </View>
+                ) : null}
+              </View>
+            </Touchable>
+          </Row>
+
           <View style={{ gap: 3 }}>
             <Text style={[type.title, { color: '#FFFFFF' }]}>
-              {firstName ? `${greeting()}, ${firstName}` : greeting()}
+              {firstName ? `${greeting()}, ${firstName}.` : `${greeting()}.`}
             </Text>
             {/*
               Which home this is, and a way to change it. Sitting under the
@@ -147,61 +198,144 @@ export default function Dashboard() {
             */}
             <Touchable onPress={() => router.push('/homes')} scaleTo={0.98}>
               <Row gap={6}>
-                <Ionicons name="location-outline" size={13} color="rgba(255,255,255,0.6)" />
-                <Text style={[type.small, { color: 'rgba(255,255,255,0.68)' }]} numberOfLines={1}>
+                <Ionicons name="location-outline" size={13} color="rgba(255,255,255,0.55)" />
+                <Text style={[type.small, { color: 'rgba(255,255,255,0.62)' }]} numberOfLines={1}>
                   {record.home.nickname}
                   {record.home.addressLine1 ? ` · ${record.home.addressLine1}` : ''}
                 </Text>
                 {propertyCount > 1 ? (
-                  <Ionicons name="chevron-down" size={13} color="rgba(255,255,255,0.6)" />
+                  <Ionicons name="chevron-down" size={13} color="rgba(255,255,255,0.55)" />
                 ) : null}
               </Row>
             </Touchable>
           </View>
 
           {hasEquipment ? (
-            <Touchable onPress={() => router.push('/health')} scaleTo={0.985}>
-              <Row gap={spacing.xl}>
-                <ScoreRing
-                  score={health.score}
-                  label={band.label}
-                  status={band.key}
-                  size={132}
-                  onDark
-                />
-                <View style={{ flex: 1, gap: spacing.sm }}>
-                  <Text style={[type.label, { color: 'rgba(255,255,255,0.5)' }]}>
-                    HOME HEALTH — {band.label.toUpperCase()}
-                  </Text>
-                  {/* Says what the number is about, so it is never read as a
-                      score for how well the owner has filled the record in. */}
-                  <Text style={[type.small, { color: 'rgba(255,255,255,0.5)' }]}>
-                    Based on documented condition, age and maintenance.
-                  </Text>
-                  <Text style={[type.small, { color: 'rgba(255,255,255,0.86)' }]} numberOfLines={5}>
-                    {health.summary}
-                  </Text>
-                  <Row gap={4}>
-                    <Text style={[type.smallStrong, { color: '#FFFFFF' }]}>See breakdown</Text>
-                    <Ionicons name="chevron-forward" size={13} color="#FFFFFF" />
+            <>
+              {/*
+                Home Health as a light card floated on the hero. Putting it on
+                paper rather than on the navy is what separates it from the
+                brand furniture around it — it is a reading about the house, not
+                a header.
+              */}
+              <Touchable onPress={() => router.push('/health')} scaleTo={0.985}>
+                <View
+                  style={[
+                    {
+                      backgroundColor: theme.surface,
+                      borderRadius: radius.lg,
+                      padding: spacing.lg,
+                      gap: spacing.md,
+                      // On light ground the shadow separates the card from the
+                      // hero. On dark ground there is no shadow to see, and the
+                      // card and the hero are both navy — so it needs an edge.
+                      borderWidth: theme.dark ? 1 : 0,
+                      borderColor: theme.border,
+                    },
+                    elevation(theme, 2),
+                  ]}
+                >
+                  <Row justify="space-between" align="center" gap={spacing.md}>
+                    <View style={{ flex: 1, gap: 2 }}>
+                      <Row gap={5}>
+                        <Text style={[type.label, { color: theme.textTertiary }]}>HOME HEALTH</Text>
+                        <Ionicons
+                          name="information-circle-outline"
+                          size={13}
+                          color={theme.textTertiary}
+                        />
+                      </Row>
+                      <Text
+                        style={[type.display, { color: toneFor(theme, band.key).fg, marginTop: 2 }]}
+                      >
+                        {band.label.toUpperCase()}
+                      </Text>
+                      <BodyStrong>
+                        {attentionCount} {attentionCount === 1 ? 'thing needs' : 'things need'}{' '}
+                        attention
+                      </BodyStrong>
+                      <Tertiary>Based on documented condition,{'\n'}age and maintenance.</Tertiary>
+                    </View>
+                    {/*
+                      The band name is already set large beside the ring, so the
+                      ring carries the denominator instead of repeating it.
+                    */}
+                    <ScoreRing score={health.score} label="/100" status={band.key} size={112} />
+                  </Row>
+                  <Divider />
+                  <Row justify="space-between">
+                    <BodyStrong>View all recommendations</BodyStrong>
+                    <Ionicons name="chevron-forward" size={16} color={theme.textTertiary} />
                   </Row>
                 </View>
-              </Row>
-            </Touchable>
+              </Touchable>
+
+              {/*
+                Record Confidence, kept beside Home Health rather than merged
+                into it: one is about the building, the other about what we know
+                of it. The darker panel and the mark make it read as Dwella
+                talking about itself, which is exactly what it is.
+              */}
+              <Touchable onPress={() => router.push('/health')} scaleTo={0.985}>
+                <View
+                  style={{
+                    backgroundColor: 'rgba(255,255,255,0.06)',
+                    borderRadius: radius.lg,
+                    borderWidth: 1,
+                    borderColor: 'rgba(255,255,255,0.13)',
+                    padding: spacing.lg,
+                  }}
+                >
+                  <Row gap={spacing.lg} align="center">
+                    <View style={{ alignItems: 'center', gap: 2, width: 104 }}>
+                      <DwellaMark size={28} house="#FFFFFF" arc={theme.brandSageLight} />
+                      <Text
+                        style={[type.label, { color: 'rgba(255,255,255,0.5)', fontSize: 9 }]}
+                      >
+                        DWELLA KNOWS
+                      </Text>
+                      <Text style={[type.hero, { color: '#FFFFFF', fontSize: 32 }, tabular]}>
+                        {confidence.percent}%
+                      </Text>
+                      <Text style={[type.small, { color: 'rgba(255,255,255,0.55)' }]}>
+                        of your home
+                      </Text>
+                    </View>
+                    <View style={{ flex: 1, gap: spacing.sm }}>
+                      <Text style={[type.small, { color: 'rgba(255,255,255,0.88)' }]}>
+                        {confidence.nextStep ?? 'Your record covers everything Dwella asks for.'}
+                      </Text>
+                      <Row gap={4}>
+                        <Text style={[type.smallStrong, { color: theme.brandSageLight }]}>
+                          {confidence.gaps.length > 0 ? 'Continue setup' : 'See what is on record'}
+                        </Text>
+                        <Ionicons name="chevron-forward" size={13} color={theme.brandSageLight} />
+                      </Row>
+                    </View>
+                  </Row>
+                </View>
+              </Touchable>
+            </>
           ) : null}
         </View>
       </HeroPanel>
 
-      {/*
-        Record Confidence sits directly under the health panel so the two read
-        as a pair and the difference between them is obvious: one is about the
-        building, one is about what we know of it. Only once there is equipment
-        to be incomplete about — on an empty home the scan prompt below is the
-        better ask.
-      */}
+      {/* ---- Your home at a glance --------------------------------------- */}
       {hasEquipment ? (
         <Enter>
-          <RecordConfidenceCard confidence={confidence} />
+          <View style={{ gap: spacing.md }}>
+            <SectionTitle
+              title="Your home at a glance"
+              action="View all"
+              onAction={() => router.push('/health')}
+            />
+            <SystemGlance
+              systems={systems}
+              health={health}
+              onPress={(id) => router.push(`/component/${id}`)}
+              onAll={() => router.push('/health')}
+            />
+          </View>
         </Enter>
       ) : null}
 
@@ -218,60 +352,30 @@ export default function Dashboard() {
         </Enter>
       ) : (
         <>
-          {/* ---- Needs attention ------------------------------------------ */}
-          {attentionCount > 0 ? (
+          {/* ---- Upcoming & due soon --------------------------------------- */}
+          {dueSoon.length > 0 ? (
             <View style={{ gap: spacing.md }}>
               <Enter>
-                <Row gap={spacing.sm}>
-                  <Heading>
-                    {attentionCount} {attentionCount === 1 ? 'thing needs' : 'things need'} attention
-                  </Heading>
-                </Row>
-              </Enter>
-
-              {attentionSystems.slice(0, 3).map((system, index) => {
-                const status = healthStatus(system.status);
-                return (
-                  <Enter key={system.componentId} index={index}>
-                    <AttentionCard
-                      icon={(CATEGORY_ICON[system.category] ?? 'cube-outline') as never}
-                      status={status.key}
-                      title={system.name}
-                      subtitle={status.label}
-                      action="View"
-                      onPress={() => router.push(`/component/${system.componentId}`)}
-                    />
-                  </Enter>
-                );
-              })}
-
-              {attentionTasks.slice(0, 3).map((task, index) => {
-                const status = urgencyStatus(task.urgency, task.criticality);
-                return (
-                  <Enter key={task.key} index={attentionSystems.length + index}>
-                    <AttentionCard
-                      icon="alarm-outline"
-                      status={status.key}
-                      title={task.title}
-                      subtitle={
-                        task.urgency === 'overdue'
-                          ? `Overdue — was due ${relativeDayLabel(asOf, task.dueDate)}`
-                          : `Due ${relativeDayLabel(asOf, task.dueDate)}`
-                      }
-                      action={task.diy.proOnlyReason ? 'Schedule' : 'Do it'}
-                      onPress={() => router.push(`/task/${encodeURIComponent(task.key)}`)}
-                    />
-                  </Enter>
-                );
-              })}
-
-              {attentionCount > 6 ? (
-                <Button
-                  label={`See all ${attentionCount}`}
-                  variant="ghost"
-                  onPress={() => router.push('/(tabs)/tasks')}
+                <SectionTitle
+                  title="Upcoming & due soon"
+                  action="View all"
+                  onAction={() => router.push('/(tabs)/tasks')}
                 />
-              ) : null}
+              </Enter>
+              <Enter index={1}>
+                <Card padding={spacing.lg}>
+                  {dueSoon.map((task, index) => (
+                    <View key={task.key} style={{ gap: spacing.md }}>
+                      {index > 0 ? <Divider inset={54} /> : null}
+                      <DueRow
+                        task={task}
+                        asOf={asOf}
+                        onPress={() => router.push(`/task/${encodeURIComponent(task.key)}`)}
+                      />
+                    </View>
+                  ))}
+                </Card>
+              </Enter>
             </View>
           ) : (
             <Enter>
@@ -279,44 +383,13 @@ export default function Dashboard() {
                 <Row gap={spacing.md}>
                   <IconTile icon="checkmark-circle-outline" status="good" size={40} />
                   <View style={{ flex: 1 }}>
-                    <BodyStrong>Nothing needs attention</BodyStrong>
+                    <BodyStrong>Nothing due</BodyStrong>
                     <Small>Everything on your calendar is up to date.</Small>
                   </View>
                 </Row>
               </Card>
             </Enter>
           )}
-
-          {/* ---- Coming up ------------------------------------------------ */}
-          {comingUp.length > 0 ? (
-            <Enter index={1}>
-              <View style={{ gap: spacing.md }}>
-                <SectionTitle title="Coming up" action="All" onAction={() => router.push('/(tabs)/tasks')} />
-                <Card padding={spacing.lg}>
-                  {comingUp.map((task, index) => (
-                    <View key={task.key} style={{ gap: spacing.md }}>
-                      {index > 0 ? <Divider inset={54} /> : null}
-                      <Touchable
-                        onPress={() => router.push(`/task/${encodeURIComponent(task.key)}`)}
-                        scaleTo={0.99}
-                      >
-                        <Row gap={spacing.md} justify="space-between">
-                          <DateChip date={task.dueDate} />
-                          <View style={{ flex: 1, gap: 1 }}>
-                            <BodyStrong numberOfLines={1}>{task.title}</BodyStrong>
-                            {task.componentName ? (
-                              <Tertiary numberOfLines={1}>{task.componentName}</Tertiary>
-                            ) : null}
-                          </View>
-                          <Ionicons name="chevron-forward" size={15} color={theme.textTertiary} />
-                        </Row>
-                      </Touchable>
-                    </View>
-                  ))}
-                </Card>
-              </View>
-            </Enter>
-          ) : null}
 
           {/*
             ---- Warranty intelligence ------------------------------------
@@ -614,4 +687,184 @@ function groupByCategory(components: HomeComponent[]): [ComponentCategory, HomeC
     'other',
   ];
   return [...groups.entries()].sort(([a], [b]) => order.indexOf(a) - order.indexOf(b));
+}
+
+/**
+ * The whole house, one line.
+ *
+ * Grouped by category and taking each group's worst member, because a homeowner
+ * thinks "my HVAC", not "my condenser and my air handler" — and because a strip
+ * of four tiles reading Good / Good / Plan ahead / Attention is scanned in a
+ * second, where four component names are read one at a time.
+ *
+ * Worst first, so the thing worth knowing is never the one you have to scroll to.
+ */
+function SystemGlance({
+  systems,
+  health,
+  onPress,
+  onAll,
+}: {
+  systems: [ComponentCategory, HomeComponent[]][];
+  health: ReturnType<typeof computeHomeHealth>;
+  onPress: (componentId: string) => void;
+  onAll: () => void;
+}) {
+  const theme = useTheme();
+
+  const RANK: Record<string, number> = { urgent: 0, attention: 1, neutral: 2, good: 3 };
+  const groups = systems
+    .map(([category, components]) => {
+      const scored = components
+        .map((c) => health.components.find((h) => h.componentId === c.id))
+        .filter((h): h is ComponentHealth => Boolean(h));
+      const worst = scored.sort((a, b) => a.score - b.score)[0];
+      return worst ? { category, worst } : undefined;
+    })
+    .filter((g): g is { category: ComponentCategory; worst: ComponentHealth } => Boolean(g))
+    .sort(
+      (a, b) =>
+        RANK[healthStatus(a.worst.status).key]! - RANK[healthStatus(b.worst.status).key]! ||
+        a.worst.score - b.worst.score,
+    );
+
+  const shown = groups.slice(0, 4);
+  const rest = groups.length - shown.length;
+
+  return (
+    <ScrollView
+      horizontal
+      showsHorizontalScrollIndicator={false}
+      contentContainerStyle={{ gap: spacing.sm, paddingRight: spacing.lg }}
+    >
+      {shown.map(({ category, worst }) => {
+        const status = healthStatus(worst.status);
+        const tone = toneFor(theme, status.key);
+        return (
+          <Touchable key={category} onPress={() => onPress(worst.componentId)} scaleTo={0.96}>
+            <View
+              style={[
+                {
+                  width: 96,
+                  borderRadius: radius.md,
+                  backgroundColor: theme.surface,
+                  paddingVertical: spacing.md,
+                  paddingHorizontal: spacing.sm,
+                  alignItems: 'center',
+                  gap: 5,
+                },
+                elevation(theme, 1),
+              ]}
+            >
+              <Ionicons
+                name={(CATEGORY_ICON[category] ?? 'cube-outline') as never}
+                size={20}
+                color={tone.fg}
+              />
+              <Text
+                style={[
+                  type.smallStrong,
+                  { color: theme.text, textAlign: 'center', fontSize: 12.5, lineHeight: 15 },
+                ]}
+                numberOfLines={2}
+              >
+                {CATEGORY_LABEL[category] ?? category}
+              </Text>
+              <Text
+                style={{ fontSize: 11, fontWeight: '600', color: tone.fg, textAlign: 'center' }}
+                numberOfLines={1}
+              >
+                {status.short}
+              </Text>
+            </View>
+          </Touchable>
+        );
+      })}
+
+      {rest > 0 ? (
+        <Touchable onPress={onAll} scaleTo={0.96}>
+          <View
+            style={{
+              width: 96,
+              borderRadius: radius.md,
+              backgroundColor: theme.surfaceSunken,
+              paddingVertical: spacing.md,
+              paddingHorizontal: spacing.sm,
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 5,
+              flex: 1,
+            }}
+          >
+            <Ionicons name="grid-outline" size={20} color={theme.textSecondary} />
+            <Text style={[type.smallStrong, { color: theme.text }]}>+{rest} More</Text>
+            <Text style={{ fontSize: 11, fontWeight: '600', color: theme.textTertiary }}>
+              View all
+            </Text>
+          </View>
+        </Touchable>
+      ) : null}
+    </ScrollView>
+  );
+}
+
+/**
+ * One line of work: when, what, and the verb for doing it.
+ *
+ * The action word is the honest one for the job — a task with a
+ * `proOnlyReason` cannot be done by the owner, so offering "Do it" there would
+ * be sending somebody up a ladder the app has already said not to climb.
+ */
+function DueRow({
+  task,
+  asOf,
+  onPress,
+}: {
+  task: ScheduledTask;
+  asOf: string;
+  onPress: () => void;
+}) {
+  const theme = useTheme();
+  const status = urgencyStatus(task.urgency, task.criticality);
+  const tone = toneFor(theme, status.key);
+  const needsPro = Boolean(task.diy.proOnlyReason);
+
+  return (
+    <Touchable onPress={onPress} scaleTo={0.99}>
+      <Row gap={spacing.md} justify="space-between">
+        <DateChip date={task.dueDate} />
+        <View style={{ flex: 1, gap: 1 }}>
+          <BodyStrong numberOfLines={1}>{task.title}</BodyStrong>
+          <Small
+            numberOfLines={1}
+            style={{ color: task.urgency === 'overdue' ? theme.red : tone.fg }}
+          >
+            {task.urgency === 'overdue'
+              ? `Overdue — was due ${relativeDayLabel(asOf, task.dueDate)}`
+              : relativeDayLabel(asOf, task.dueDate)}
+          </Small>
+        </View>
+        <View
+          style={{
+            borderRadius: radius.pill,
+            borderWidth: 1,
+            borderColor: needsPro ? theme.border : theme.amber,
+            backgroundColor: needsPro ? 'transparent' : theme.amberSoft,
+            paddingHorizontal: 13,
+            paddingVertical: 6,
+          }}
+        >
+          <Text
+            style={{
+              fontSize: 13,
+              fontWeight: '600',
+              color: needsPro ? theme.textSecondary : theme.amber,
+            }}
+          >
+            {needsPro ? 'Schedule' : 'Do it'}
+          </Text>
+        </View>
+      </Row>
+    </Touchable>
+  );
 }

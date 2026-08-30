@@ -13,6 +13,7 @@ import {
   Button,
   Card,
   Chip,
+  SegmentedTabs,
   DiyHire,
   Divider,
   EmptyState,
@@ -85,11 +86,17 @@ export default function Tasks() {
         </Small>
       </View>
 
-      <Row gap={spacing.sm}>
-        <Chip label="Everything" selected={filter === 'all'} onPress={() => setFilter('all')} />
-        <Chip label="I can do it" selected={filter === 'diy'} onPress={() => setFilter('diy')} />
-        <Chip label="Needs a pro" selected={filter === 'pro'} onPress={() => setFilter('pro')} />
-      </Row>
+      <View>
+        <SegmentedTabs
+          value={filter}
+          onChange={setFilter}
+          options={[
+            { key: 'all' as const, label: 'Everything' },
+            { key: 'diy' as const, label: 'I can do it' },
+            { key: 'pro' as const, label: 'Needs a pro' },
+          ]}
+        />
+      </View>
 
       {/* The season, as a lens on the same schedule rather than a second list. */}
       {filter === 'all' && plan ? (
