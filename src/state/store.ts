@@ -5,6 +5,7 @@ import { createJSONStorage, persist } from 'zustand/middleware';
 import { today } from '../core/dates';
 import { buildServiceRequestPacket } from '../core/engine/serviceRequest';
 import type {
+  DispatchStatus,
   DocumentRef,
   Home,
   HomeComponent,
@@ -14,6 +15,7 @@ import type {
   MediaRef,
   ScheduledTask,
   ServiceRequest,
+  ServiceRequestDelivery,
   TimelineEvent,
 } from '../core/types';
 import { newId, nowISO } from './ids';
@@ -101,6 +103,16 @@ interface StoreState {
     providerId?: string;
   }) => ServiceRequest;
   submitServiceRequest: (id: string) => void;
+  recordDelivery: (id: string, delivery: ServiceRequestDelivery) => void;
+  applyRemoteStatus: (
+    id: string,
+    remote: {
+      status: DispatchStatus;
+      providerNote?: string;
+      quotedCents?: number;
+      scheduledFor?: string;
+    },
+  ) => void;
   completeServiceRequest: (params: {
     id: string;
     completedOn: ISODate;
@@ -326,6 +338,49 @@ export const useStore = create<StoreState>()(
           serviceRequests: state.serviceRequests.map((r) =>
             r.id === id ? { ...r, status: 'submitted' as const, submittedAt: nowISO() } : r,
           ),
+        })),
+
+      recordDelivery: (id, delivery) =>
+        set((state) => ({
+          serviceRequests: state.serviceRequests.map((r) =>
+            r.id === id ? { ...r, delivery: { ...r.delivery, ...delivery } } : r,
+          ),
+        })),
+
+      /**
+       * Folds a status read from the provider back into the local request.
+       *
+       * The provider's view is authoritative for the provider's own states, but
+       * it never rewrites the local status wholesale: a request the owner has
+       * cancelled on the phone stays cancelled, and only a real completion moves
+       * the local copy to done. Everything else lives in `delivery`, so the two
+       * sides can disagree without either silently overwriting the other.
+       */
+      applyRemoteStatus: (id, remote) =>
+        set((state) => ({
+          serviceRequests: state.serviceRequests.map((r) => {
+            if (r.id !== id || !r.delivery) return r;
+            const local =
+              r.status === 'cancelled' || r.status === 'completed'
+                ? r.status
+                : remote.status === 'completed'
+                  ? ('completed' as const)
+                  : remote.status === 'scheduled'
+                    ? ('scheduled' as const)
+                    : r.status;
+            return {
+              ...r,
+              status: local,
+              delivery: {
+                ...r.delivery,
+                remoteStatus: remote.status,
+                providerNote: remote.providerNote,
+                quotedCents: remote.quotedCents,
+                scheduledFor: remote.scheduledFor,
+                lastPolledAt: nowISO(),
+              },
+            };
+          }),
         })),
 
       cancelServiceRequest: (id) =>

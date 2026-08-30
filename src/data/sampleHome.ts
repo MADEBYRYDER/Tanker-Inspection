@@ -395,6 +395,7 @@ export function buildSampleRecord(): { record: HomeRecord; media: MediaRef[] } {
         id: HOME_ID,
         nickname: 'Marsh Point',
         ownerName: 'Ryder',
+        contactPhone: '(843) 555-0142',
         addressLine1: '412 Marsh Point Lane',
         city: 'Mount Pleasant',
         state: 'SC',

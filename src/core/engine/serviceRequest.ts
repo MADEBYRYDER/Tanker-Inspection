@@ -60,6 +60,20 @@ export function buildServiceRequestPacket(params: {
     .filter(Boolean)
     .join(' · ') || 'Home details not recorded';
 
+  /*
+   * The street address is the one field a contractor cannot work without, and it
+   * was missing here while the compose screen told the owner it was included.
+   * It goes in the packet, and the compose screen now itemises exactly this.
+   */
+  const address =
+    [
+      home.addressLine1,
+      [home.city, home.state].filter(Boolean).join(', ') || undefined,
+      home.postalCode,
+    ]
+      .filter(Boolean)
+      .join(', ') || undefined;
+
   let equipment: ServiceRequestPacket['equipment'];
   if (component) {
     const age = resolveComponentAge(component, home, asOf);
@@ -91,6 +105,11 @@ export function buildServiceRequestPacket(params: {
 
   return {
     homeSummary,
+    contact: {
+      address,
+      ownerName: home.ownerName,
+      phone: home.contactPhone,
+    },
     equipment,
     relevantHistory: history,
     problem,
@@ -103,6 +122,9 @@ export function buildServiceRequestPacket(params: {
 export function renderPacketText(packet: ServiceRequestPacket, title: string): string {
   const lines: string[] = [title, ''];
   lines.push(`Property: ${packet.homeSummary}`);
+  if (packet.contact.address) lines.push(`Address: ${packet.contact.address}`);
+  const who = [packet.contact.ownerName, packet.contact.phone].filter(Boolean).join(' · ');
+  if (who) lines.push(`Contact: ${who}`);
   lines.push('');
 
   if (packet.equipment) {

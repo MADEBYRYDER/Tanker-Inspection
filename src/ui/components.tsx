@@ -462,7 +462,7 @@ export function Field({
   value: string;
   onChangeText: (next: string) => void;
   placeholder?: string;
-  keyboardType?: 'default' | 'numeric' | 'decimal-pad';
+  keyboardType?: 'default' | 'numeric' | 'decimal-pad' | 'phone-pad' | 'email-address';
   multiline?: boolean;
   hint?: string;
   autoCapitalize?: 'none' | 'sentences' | 'words' | 'characters';

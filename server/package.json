@@ -1,9 +1,9 @@
 {
-  "name": "homestead-ai-gateway",
+  "name": "homestead-server",
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Holds the Anthropic API key so the mobile app never has to.",
+  "description": "Holds the Anthropic API key so the mobile app never has to, and runs the contractor dispatch service.",
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "start": "tsx src/index.ts",

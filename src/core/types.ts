@@ -253,10 +253,56 @@ export interface ServiceRequest {
   createdAt: ISODateTime;
   submittedAt?: ISODateTime;
   completedAt?: ISODateTime;
+  /** Set once a dispatch server has acknowledged it. Absent means it never left the phone. */
+  delivery?: ServiceRequestDelivery;
+}
+
+/**
+ * Where a request sits on the provider's side.
+ *
+ * A superset of `ServiceRequestStatus`: the phone only ever needed draft →
+ * submitted → done, but a dispatcher works a queue and needs the states in
+ * between to be distinguishable — acknowledged is not quoted, and quoted is not
+ * scheduled.
+ */
+export type DispatchStatus =
+  | 'submitted'
+  | 'acknowledged'
+  | 'quoted'
+  | 'scheduled'
+  | 'completed'
+  | 'declined'
+  | 'cancelled';
+
+/** What happened when the request was sent to a provider's dispatch server. */
+export interface ServiceRequestDelivery {
+  /** The id the dispatch server filed it under. */
+  remoteId: string;
+  /** Secret for reading this one request back. Stays on the device. */
+  trackingToken: string;
+  deliveredAt: ISODateTime;
+  /** Status as of the last poll, which can move ahead of the local copy. */
+  remoteStatus?: DispatchStatus;
+  /** What the provider has said back: a quote, a scheduled window, a note. */
+  providerNote?: string;
+  scheduledFor?: ISODateTime;
+  quotedCents?: number;
+  lastPolledAt?: ISODateTime;
 }
 
 export interface ServiceRequestPacket {
   homeSummary: string;
+  /**
+   * Where to send the truck, and who to ask for. Present only because the owner
+   * pressed send on this specific request — everything here is spelled out on the
+   * compose screen before it goes.
+   */
+  contact: {
+    /** Street, city, state, postal code — as much as the record holds. */
+    address?: string;
+    ownerName?: string;
+    phone?: string;
+  };
   equipment?: {
     name: string;
     type: string;
@@ -286,8 +332,13 @@ export interface Provider {
 export interface Home {
   id: string;
   nickname: string;
-  /** Who lives here. Used only to address them; never sent anywhere. */
+  /**
+   * Who lives here. Used to address them, and included in a service request
+   * packet so a contractor knows who to ask for — never sent anywhere else.
+   */
   ownerName?: string;
+  /** Callback number, asked for at the point a service request is composed. */
+  contactPhone?: string;
   addressLine1?: string;
   city?: string;
   state?: string;

@@ -13,18 +13,25 @@ import {
   generateStructured,
   type ImageInput,
 } from './anthropic';
+import { DispatchError, dispatchRouter } from './dispatch/routes';
+import { allProviders, usingGeneratedToken } from './dispatch/providers';
 import { ASSISTANT_SYSTEM, DOCUMENT_SYSTEM, PROBLEM_SYSTEM, SCAN_SYSTEM } from './prompts';
 
 /**
- * The Homestead AI gateway.
+ * The Homestead server.
  *
- * Deliberately small. It exists so the Anthropic API key lives on a server the
- * operator controls rather than inside a mobile app bundle, where it would be
- * trivially extractable and spendable by anyone who downloads the app.
+ * Two things live here, deliberately separate:
+ *
+ *   - The AI gateway (`/ai/*`), which exists so the Anthropic API key lives on a
+ *     server the operator controls rather than inside a mobile app bundle, where
+ *     it would be trivially extractable and spendable by anyone who downloads it.
+ *   - The dispatch service (`/dispatch/*`, `/provider/*`), which receives service
+ *     requests from the app, gives contractors a queue to work, and reports
+ *     status back to the homeowner.
  *
  * Everything the app sends is treated as untrusted input: images are size-capped
- * before they reach the model, and free text is length-capped. Neither is a
- * substitute for real authentication — see the deployment notes in server/README.md.
+ * before they reach the model, free text is length-capped, and every dispatch
+ * payload is schema-validated on arrival. See server/README.md for deployment.
  */
 
 const PORT = Number(process.env.PORT ?? 8787);
@@ -117,8 +124,11 @@ const asyncRoute =
  * ---------------------------------------------------------------------- */
 
 app.get('/health', (_req, res) => {
-  res.json({ ok: true, model: MODEL, service: 'homestead-ai-gateway' });
+  res.json({ ok: true, model: MODEL, service: 'homestead-server' });
 });
+
+/** Service request intake, the contractor queue, and status back to the homeowner. */
+app.use(dispatchRouter());
 
 /** Identify equipment from scan photos. */
 app.post(
@@ -234,7 +244,17 @@ app.post(
  * Errors
  * ---------------------------------------------------------------------- */
 
-app.use((error: unknown, _req: Request, res: Response, _next: NextFunction) => {
+app.use((error: unknown, req: Request, res: Response, _next: NextFunction) => {
+  if (error instanceof DispatchError) {
+    // An unauthenticated browser hitting a dispatch page gets the sign-in screen
+    // rather than a JSON 401 it cannot do anything with.
+    if (error.status === 401 && req.accepts(['json', 'html']) === 'html') {
+      res.redirect('/dispatch');
+      return;
+    }
+    res.status(error.status).json({ error: 'dispatch_error', detail: error.message });
+    return;
+  }
   if (error instanceof BadRequest) {
     res.status(400).json({ error: 'bad_request', detail: error.message });
     return;
@@ -274,10 +294,24 @@ app.use((error: unknown, _req: Request, res: Response, _next: NextFunction) => {
 });
 
 app.listen(PORT, () => {
-  console.log(`Homestead AI gateway listening on :${PORT} (model: ${MODEL})`);
+  console.log(`Homestead server listening on :${PORT} (model: ${MODEL})`);
+  console.log(`  Dispatch view:  http://localhost:${PORT}/dispatch`);
   if (!process.env.ANTHROPIC_API_KEY && !process.env.ANTHROPIC_AUTH_TOKEN) {
     console.warn(
       'No ANTHROPIC_API_KEY or ANTHROPIC_AUTH_TOKEN set. The SDK will look for an `ant auth login` profile; if there is none, requests will fail with an authentication error.',
+    );
+  }
+  if (usingGeneratedToken) {
+    /*
+     * Printed once, and only when the operator configured nothing. A fresh
+     * random token per process beats any default: a dev instance someone forgot
+     * to shut down is not a door anyone else can walk through.
+     */
+    const [provider] = allProviders();
+    console.warn(
+      `\nNo HOMESTEAD_PROVIDERS configured. Generated a development token for "${provider?.name}":\n` +
+        `  ${provider?.token}\n` +
+        `Sign in at http://localhost:${PORT}/dispatch. Set HOMESTEAD_PROVIDERS to make this stable.\n`,
     );
   }
 });

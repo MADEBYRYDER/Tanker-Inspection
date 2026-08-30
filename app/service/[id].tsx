@@ -6,7 +6,11 @@ import { formatDate, today } from '../../src/core/dates';
 import { PROVIDERS, buildServiceRequestPacket, providersForCategory, renderPacketText } from '../../src/core/engine/serviceRequest';
 import { formatMoneyExact } from '../../src/core/money';
 import type { ServiceRequest } from '../../src/core/types';
+import type { DispatchStatus } from '../../src/core/types';
+import { fetchStatus, isDispatchConfigured, submitToProvider } from '../../src/dispatch/client';
 import { useHomeRecord, useStore } from '../../src/state/store';
+import { PhotoTray, canSubmit } from '../../src/ui/PhotoTray';
+import { toPayload, type CapturedImage } from '../../src/ui/capture';
 import {
   Badge,
   Body,
@@ -20,9 +24,10 @@ import {
   Field,
   Heading,
   KeyValue,
+  Label,
+  Loading,
   Small,
   Notice,
-  ProvenanceTag,
   Row,
   Screen,
   SectionTitle,
@@ -39,6 +44,17 @@ import { spacing, useTheme } from '../../src/ui/theme';
  * the contractor's invoice and photos come back into the timeline — which is what
  * makes the record grow without the owner maintaining it.
  */
+/** Plain-language names for the provider-side states. "Acknowledged" beats a status code. */
+const DELIVERY_LABEL: Record<DispatchStatus, string> = {
+  submitted: 'sent',
+  acknowledged: 'they have seen it',
+  quoted: 'quoted',
+  scheduled: 'scheduled',
+  completed: 'completed',
+  declined: 'declined',
+  cancelled: 'withdrawn',
+};
+
 export default function ServiceRequestScreen() {
   const params = useLocalSearchParams<{
     id: string;
@@ -62,6 +78,9 @@ function ComposeRequest({
   const record = useHomeRecord();
   const createRequest = useStore((s) => s.createServiceRequest);
   const submitRequest = useStore((s) => s.submitServiceRequest);
+  const recordDelivery = useStore((s) => s.recordDelivery);
+  const updateHome = useStore((s) => s.updateHome);
+  const addMedia = useStore((s) => s.addMedia);
 
   const [componentId, setComponentId] = useState<string | undefined>(params.componentId || undefined);
   const [title, setTitle] = useState(params.title ?? '');
@@ -70,24 +89,43 @@ function ComposeRequest({
     params.urgency === 'emergency' ? 'emergency' : params.urgency === 'routine' ? 'routine' : 'soon',
   );
   const [providerId, setProviderId] = useState<string | undefined>(PROVIDERS[0]?.id);
+  const [images, setImages] = useState<CapturedImage[]>([]);
+  const [phone, setPhone] = useState(record?.home.contactPhone ?? '');
+  const [sending, setSending] = useState(false);
+  const [sendError, setSendError] = useState<string | undefined>();
 
   const component = record?.components.find((c) => c.id === componentId);
 
+  /*
+   * The preview is built from the phone number in the field rather than the one
+   * on file, so what the owner reads here is exactly what gets sent — including
+   * an edit they have made but not yet saved.
+   */
   const preview = useMemo(() => {
     if (!record) return undefined;
     return buildServiceRequestPacket({
-      record,
+      record: { ...record, home: { ...record.home, contactPhone: phone.trim() || undefined } },
       component,
       problem: problem || '(describe the problem)',
-      photoCount: 0,
+      photoCount: images.length,
     });
-  }, [record, component, problem]);
+  }, [record, component, problem, images.length, phone]);
 
   if (!record) return <Screen><Small>Set up your home first.</Small></Screen>;
 
   const providers = component ? providersForCategory(component.category) : PROVIDERS;
 
-  const send = () => {
+  const send = async () => {
+    setSendError(undefined);
+
+    // A number entered here is worth keeping; the next request should not ask again.
+    const trimmedPhone = phone.trim() || undefined;
+    if (trimmedPhone !== record.home.contactPhone) updateHome({ contactPhone: trimmedPhone });
+
+    const photoIds = images.map(
+      (image) => addMedia({ uri: image.uri, kind: 'photo', role: 'issue' }).id,
+    );
+
     const request = createRequest({
       componentId,
       taskKey: params.taskKey,
@@ -95,8 +133,41 @@ function ComposeRequest({
       problemDescription: problem.trim(),
       urgency,
       providerId,
+      photoIds,
     });
     submitRequest(request.id);
+
+    /*
+     * The request is already saved. Sending is a separate step that is allowed to
+     * fail: when there is no dispatch server, or the signal drops, the owner still
+     * has a complete record of what they asked for and can send it later.
+     */
+    if (providerId && isDispatchConfigured()) {
+      setSending(true);
+      try {
+        const response = await submitToProvider({
+          request: { ...request, status: 'submitted' },
+          providerId,
+          photos: images.map(toPayload),
+        });
+        recordDelivery(request.id, {
+          remoteId: response.id,
+          trackingToken: response.trackingToken,
+          deliveredAt: new Date().toISOString(),
+          remoteStatus: response.status,
+        });
+      } catch (error) {
+        setSendError(
+          error instanceof Error
+            ? error.message
+            : 'Could not reach the provider. The request is saved on your phone.',
+        );
+        setSending(false);
+        return;
+      }
+      setSending(false);
+    }
+
     router.replace(`/service/${request.id}`);
   };
 
@@ -138,6 +209,28 @@ function ComposeRequest({
       </Card>
 
       <Card>
+        <Label>Photos</Label>
+        <PhotoTray
+          images={images}
+          onChange={setImages}
+          role="reported issue"
+          captureLabel="Photograph it"
+          emptyHint="Optional, but a photo of the problem is usually worth more than a paragraph describing it."
+        />
+      </Card>
+
+      <Card>
+        <Field
+          label="Callback number"
+          value={phone}
+          onChangeText={setPhone}
+          keyboardType="phone-pad"
+          placeholder="(843) 555-0142"
+          hint="How the company reaches you to schedule. Saved for next time."
+        />
+      </Card>
+
+      <Card>
         <SectionTitle title="Send to" />
         {providers.length === 0 ? (
           <Small>No provider covers this trade in your area yet.</Small>
@@ -171,17 +264,47 @@ function ComposeRequest({
         </Card>
       ) : null}
 
-      <Button
-        label="Send request"
-        icon="paper-plane-outline"
-        onPress={send}
-        disabled={problem.trim().length < 8}
-        full
-      />
-      <Tertiary>
-        Sending shares the packet above with the selected provider. Your address is included; your
-        cost history is not.
-      </Tertiary>
+      {sendError ? (
+        <Card tone={theme.redSoft}>
+          <Small style={{ color: theme.red }}>{sendError}</Small>
+          <Tertiary>
+            The request is saved here either way. You can reach the company directly, or try
+            sending again.
+          </Tertiary>
+        </Card>
+      ) : null}
+
+      {sending ? (
+        <Loading label="Sending to the company…" />
+      ) : (
+        <Button
+          label={isDispatchConfigured() ? 'Send request' : 'Save request'}
+          icon="paper-plane-outline"
+          onPress={() => void send()}
+          disabled={problem.trim().length < 8 || (images.length > 0 && !canSubmit(images))}
+          full
+        />
+      )}
+
+      {/* Say exactly what leaves the phone. The list matches the packet above,
+          field for field — a vague reassurance here would be worse than none. */}
+      <Card tone={theme.surfaceSunken}>
+        <SectionTitle title="What gets shared" />
+        <Small>
+          Your address and callback number, the equipment details and service history shown above,
+          your description of the problem, and any photos you attached.
+        </Small>
+        <Tertiary>
+          Not shared: what anything has cost you, your documents, your other equipment, or your
+          home health score.
+        </Tertiary>
+        {!isDispatchConfigured() ? (
+          <Notice tone="neutral" icon="cloud-offline-outline">
+            No dispatch server is configured on this build, so nothing is transmitted. The request
+            is saved here and shows you exactly what a company would receive.
+          </Notice>
+        ) : null}
+      </Card>
     </Screen>
   );
 }
@@ -193,11 +316,30 @@ function ViewRequest({ id }: { id: string }) {
   const completeRequest = useStore((s) => s.completeServiceRequest);
   const cancelRequest = useStore((s) => s.cancelServiceRequest);
 
+  const applyRemoteStatus = useStore((s) => s.applyRemoteStatus);
   const request = record?.serviceRequests.find((r) => r.id === id);
   const [closing, setClosing] = useState(false);
   const [vendor, setVendor] = useState('');
   const [cost, setCost] = useState('');
   const [description, setDescription] = useState('');
+  const [checking, setChecking] = useState(false);
+  const [checkError, setCheckError] = useState<string | undefined>();
+
+  const delivery = request?.delivery;
+
+  const refresh = async () => {
+    if (!request || !delivery) return;
+    setChecking(true);
+    setCheckError(undefined);
+    try {
+      const status = await fetchStatus(delivery.remoteId, delivery.trackingToken);
+      applyRemoteStatus(request.id, status);
+    } catch (error) {
+      setCheckError(error instanceof Error ? error.message : 'Could not reach the company.');
+    } finally {
+      setChecking(false);
+    }
+  };
 
   if (!record || !request) {
     return (
@@ -243,8 +385,47 @@ function ViewRequest({ id }: { id: string }) {
         </Tertiary>
       </View>
 
+      {/* What the company has said back. Above the packet, because after the
+          request is sent this is the only part the owner returns to read. */}
+      {delivery ? (
+        <Card>
+          <Row justify="space-between">
+            <SectionTitle title="From the company" />
+            <Badge
+              label={DELIVERY_LABEL[delivery.remoteStatus ?? 'submitted']}
+              fg={delivery.remoteStatus === 'declined' ? theme.red : theme.blue}
+              bg={delivery.remoteStatus === 'declined' ? theme.redSoft : theme.blueSoft}
+            />
+          </Row>
+          {delivery.providerNote ? (
+            <Body>{delivery.providerNote}</Body>
+          ) : (
+            <Small>
+              Delivered {formatDate(delivery.deliveredAt.slice(0, 10))}. Nothing back from them yet.
+            </Small>
+          )}
+          {delivery.quotedCents !== undefined ? (
+            <KeyValue label="Quoted" value={formatMoneyExact(delivery.quotedCents)} />
+          ) : null}
+          {delivery.scheduledFor ? (
+            <KeyValue label="Scheduled" value={delivery.scheduledFor.replace('T', ' at ')} />
+          ) : null}
+          {checkError ? <Small style={{ color: theme.red }}>{checkError}</Small> : null}
+          {checking ? (
+            <Loading label="Checking…" />
+          ) : (
+            <Button label="Check for an update" variant="secondary" size="sm" icon="refresh-outline" onPress={() => void refresh()} />
+          )}
+        </Card>
+      ) : request.status !== 'draft' ? (
+        <Notice icon="phone-portrait-outline">
+          This request is saved on your phone. No dispatch server is configured on this build, so it
+          was not transmitted — the packet below is exactly what a company would receive.
+        </Notice>
+      ) : null}
+
       <Card>
-        <SectionTitle title="The packet they received" />
+        <SectionTitle title={delivery ? 'The packet they received' : 'What they would receive'} />
         <PacketView packet={request.packet} />
       </Card>
 
@@ -283,6 +464,9 @@ function PacketView({ packet }: { packet: ServiceRequest['packet'] }) {
   return (
     <View style={{ gap: spacing.md }}>
       <KeyValue label="Property" value={packet.homeSummary} />
+      {packet.contact.address ? <KeyValue label="Address" value={packet.contact.address} /> : null}
+      {packet.contact.ownerName ? <KeyValue label="Contact" value={packet.contact.ownerName} /> : null}
+      {packet.contact.phone ? <KeyValue label="Phone" value={packet.contact.phone} /> : null}
 
       {packet.equipment ? (
         <>
