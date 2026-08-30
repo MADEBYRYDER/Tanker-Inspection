@@ -10,6 +10,7 @@ import {
   chargesForProperty,
   priceOfAdding,
   tierFor,
+  tierMove,
   trialAvailable,
   type Tier,
 } from '../../src/core/billing';
@@ -106,6 +107,20 @@ export default function MembershipDetails() {
   const pendingCancellation = Boolean(subscription?.cancelledOn) && tier !== 'free';
 
   /**
+   * What a row offers, said as a direction rather than a destination.
+   *
+   * "Switch to Dwella+" made the owner work out which way they were moving by
+   * comparing prices. Naming the direction answers it. Moving to free keeps its
+   * own verb: it is a cancellation — billing stops and access runs to the end of
+   * the period — and calling that a downgrade would hide the part that matters.
+   */
+  const moveLabel = (option: Tier) => {
+    const target = TIERS[option];
+    if (option === 'free') return `Cancel — move to ${target.name}`;
+    return `${tierMove(tier, option) === 'upgrade' ? 'Upgrade' : 'Downgrade'} to ${target.name}`;
+  };
+
+  /**
    * Moving between plans.
    *
    * Downgrading is a decision the owner is entitled to make on the spot, so it
@@ -114,6 +129,10 @@ export default function MembershipDetails() {
    * the dialog says exactly that rather than implying a charge that never
    * happened. When StoreKit and Play Billing are in, this branch becomes a
    * purchase whose success handler calls `activateSubscription`.
+   *
+   * The confirmation repeats the row's own verb. A dialog that says "Switch"
+   * over a button that said "Downgrade" is a second, vaguer description of the
+   * thing already decided on.
    */
   const move = async (next: Tier) => {
     if (!propertyId) return;
@@ -131,15 +150,19 @@ export default function MembershipDetails() {
     }
 
     const target = TIERS[next];
+    const direction = tierMove(tier, next);
+    const verb = direction === 'upgrade' ? 'Upgrade' : 'Downgrade';
     const price = priceOfAdding(
       subscriptions.filter((s) => s.propertyId !== propertyId),
       next as Exclude<Tier, 'free'>,
       asOf,
     );
     const confirmed = await confirm({
-      title: `Switch ${property.nickname} to ${target.name}?`,
-      message: `${target.name} is ${formatMoneyExact(price)} a month for this home. In-app purchase is not wired up in this build, so nothing will be charged — the plan is applied so you can see what it changes.`,
-      confirmLabel: `Switch to ${target.name}`,
+      title: `${verb} ${property.nickname} to ${target.name}?`,
+      message: `${target.name} is ${formatMoneyExact(price)} a month for this home${
+        direction === 'downgrade' ? `, down from ${definition.name}` : ''
+      }. In-app purchase is not wired up in this build, so nothing will be charged — the plan is applied so you can see what it changes.`,
+      confirmLabel: `${verb} to ${target.name}`,
     });
     if (confirmed) changeTier(propertyId, next);
   };
@@ -256,7 +279,7 @@ export default function MembershipDetails() {
                   <Row justify="space-between" gap={spacing.md}>
                     <View style={{ flex: 1 }}>
                       <Text style={[type.bodyStrong, { color: theme.text }]}>
-                        {option === 'free' ? `Cancel — move to ${target.name}` : `Switch to ${target.name}`}
+                        {moveLabel(option)}
                       </Text>
                       <Tertiary>{target.blurb}</Tertiary>
                     </View>

@@ -93,6 +93,24 @@ export function tierIncludesPlus(tier: Tier): boolean {
 
 export const TIER_ORDER: Tier[] = ['free', 'plus', 'care'];
 
+/**
+ * Which direction a plan change goes.
+ *
+ * The tiers are strictly ordered — free, then Plus, then Care, each containing
+ * the one below — so "upgrade" and "downgrade" are facts about the pair rather
+ * than marketing words. A screen that says "Switch to Dwella+" is making the
+ * owner work out which way they are moving from the prices; naming the
+ * direction is the difference between a menu and an answer.
+ */
+export type TierMove = 'upgrade' | 'downgrade' | 'same';
+
+export function tierMove(from: Tier, to: Tier): TierMove {
+  const a = TIER_ORDER.indexOf(from);
+  const b = TIER_ORDER.indexOf(to);
+  if (a === b) return 'same';
+  return b > a ? 'upgrade' : 'downgrade';
+}
+
 /* -------------------------------------------------------------------------
  * Subscriptions — one per property
  * ---------------------------------------------------------------------- */

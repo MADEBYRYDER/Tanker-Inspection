@@ -10,6 +10,7 @@ import {
   priceOfAdding,
   priceSubscriptions,
   startTrial,
+  tierMove,
   statementFor,
   statementPeriods,
   tierFor,
@@ -286,5 +287,39 @@ describe('payment methods', () => {
   it('warns before a card expires rather than after a payment fails', () => {
     expect(cardExpiringSoon(card, TODAY)).toBe(false);
     expect(cardExpiringSoon({ ...card, expMonth: 9, expYear: 2026 }, TODAY)).toBe(true);
+  });
+});
+
+
+describe('the direction of a plan change', () => {
+  it('reads up from free', () => {
+    expect(tierMove('free', 'plus')).toBe('upgrade');
+    expect(tierMove('free', 'care')).toBe('upgrade');
+  });
+
+  it('reads up from plus to care, and down the other way', () => {
+    expect(tierMove('plus', 'care')).toBe('upgrade');
+    expect(tierMove('care', 'plus')).toBe('downgrade');
+  });
+
+  it('treats dropping to free as a downgrade', () => {
+    expect(tierMove('plus', 'free')).toBe('downgrade');
+    expect(tierMove('care', 'free')).toBe('downgrade');
+  });
+
+  it('has no direction to itself', () => {
+    for (const tier of ['free', 'plus', 'care'] as const) {
+      expect(tierMove(tier, tier)).toBe('same');
+    }
+  });
+
+  /*
+   * The ordering is the contract the labels rest on: Care contains Plus which
+   * contains free. If a tier were ever inserted out of order, every Upgrade and
+   * Downgrade label in the app would silently invert.
+   */
+  it('agrees with what each tier costs', () => {
+    expect(TIERS.free.monthlyCents).toBeLessThan(TIERS.plus.monthlyCents);
+    expect(TIERS.plus.monthlyCents).toBeLessThan(TIERS.care.monthlyCents);
   });
 });
