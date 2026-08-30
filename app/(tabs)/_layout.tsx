@@ -1,9 +1,9 @@
-import { Ionicons } from '@expo/vector-icons';
+import { Feather } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import { Tabs } from 'expo-router';
 import { Platform, StyleSheet, View } from 'react-native';
 import { Touchable } from '../../src/ui/motion';
-import { elevation, radius, useTheme } from '../../src/ui/theme';
+import { fonts, elevation, radius, useTheme } from '../../src/ui/theme';
 
 /** The scan chooser's ground. Shared with the screen itself so they meet cleanly. */
 export const SCAN_GROUND = '#071624';
@@ -27,9 +27,9 @@ export default function TabsLayout() {
         // it. A nav bar on top of that prints the word twice and costs a strip of
         // phone screen.
         headerShown: false,
-        tabBarActiveTintColor: theme.text,
-        tabBarInactiveTintColor: theme.textTertiary,
-        tabBarLabelStyle: { fontSize: 10.5, fontWeight: '600', letterSpacing: -0.1 },
+        tabBarActiveTintColor: '#FFFFFF',
+        tabBarInactiveTintColor: 'rgba(255,255,255,0.5)',
+        tabBarLabelStyle: { fontSize: 10.5, fontFamily: fonts.sans[600], letterSpacing: -0.1 },
         tabBarStyle: {
           position: 'absolute',
           backgroundColor: 'transparent',
@@ -47,18 +47,14 @@ export default function TabsLayout() {
         name="index"
         options={{
           title: 'Home',
-          tabBarIcon: ({ color, focused }) => (
-            <Ionicons name={focused ? 'home' : 'home-outline'} size={21} color={color} />
-          ),
+          tabBarIcon: ({ color }) => <Feather name="home" size={21} color={color} />,
         }}
       />
       <Tabs.Screen
         name="timeline"
         options={{
           title: 'Timeline',
-          tabBarIcon: ({ color, focused }) => (
-            <Ionicons name={focused ? 'time' : 'time-outline'} size={21} color={color} />
-          ),
+          tabBarIcon: ({ color }) => <Feather name="clock" size={21} color={color} />,
         }}
       />
       <Tabs.Screen
@@ -66,67 +62,48 @@ export default function TabsLayout() {
         options={{
           title: '',
           tabBarButton: (props) => <ScanButton onPress={() => props.onPress?.({} as never)} />,
-          /*
-           * The chooser is the app's one full-bleed dark screen, and the glass
-           * bar reads as a light strip stuck to the bottom of it. Painting the
-           * bar and the scene the same navy keeps it one surface, with the tab
-           * labels still there so leaving is a tap rather than a hunt.
-           */
+          // The chooser's ground, so the screen and the bar meet without a seam.
           sceneStyle: { backgroundColor: SCAN_GROUND },
-          tabBarBackground: () => (
-            <View style={{ flex: 1, backgroundColor: SCAN_GROUND }} />
-          ),
-          tabBarInactiveTintColor: 'rgba(255,255,255,0.5)',
-          tabBarActiveTintColor: '#FFFFFF',
         }}
       />
       <Tabs.Screen
         name="tasks"
         options={{
           title: 'Tasks',
-          tabBarIcon: ({ color, focused }) => (
-            <Ionicons
-              name={focused ? 'checkmark-circle' : 'checkmark-circle-outline'}
-              size={21}
-              color={color}
-            />
-          ),
+          tabBarIcon: ({ color }) => <Feather name="clipboard" size={21} color={color} />,
         }}
       />
       <Tabs.Screen
         name="profile"
         options={{
           title: 'Profile',
-          tabBarIcon: ({ color, focused }) => (
-            <Ionicons name={focused ? 'person' : 'person-outline'} size={21} color={color} />
-          ),
+          tabBarIcon: ({ color }) => <Feather name="user" size={21} color={color} />,
         }}
       />
     </Tabs>
   );
 }
 
+/**
+ * The bar is navy in both themes.
+ *
+ * It is brand furniture rather than page chrome — the same navy as the hero at
+ * the top of the dashboard, so the screen is bracketed by the brand and the
+ * content sits on paper between them. A bar that went light in light mode would
+ * read as part of the last card rather than as the app's frame.
+ *
+ * The blur stays for the translucency over scrolling content; the wash on top
+ * is what makes it navy rather than whatever is behind it.
+ */
 function GlassBar() {
-  const theme = useTheme();
   return (
     <View style={StyleSheet.absoluteFill}>
       <BlurView
         intensity={Platform.OS === 'android' ? 40 : 70}
-        tint={theme.dark ? 'dark' : 'light'}
+        tint="dark"
         style={StyleSheet.absoluteFill}
       />
-      {/* Blur alone is too transparent over busy content; a wash restores contrast. */}
-      <View style={[StyleSheet.absoluteFill, { backgroundColor: theme.glass }]} />
-      <View
-        style={{
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          right: 0,
-          height: StyleSheet.hairlineWidth,
-          backgroundColor: theme.border,
-        }}
-      />
+      <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(7,22,36,0.94)' }]} />
     </View>
   );
 }
@@ -154,12 +131,12 @@ function ScanButton({ onPress }: { onPress: () => void }) {
             // Lifted above the bar so it reads as the primary action, not a tab.
             marginTop: -24,
             borderWidth: 4,
-            borderColor: theme.bg,
+            borderColor: SCAN_GROUND,
           },
           elevation(theme, 3),
         ]}
       >
-        <Ionicons name="scan-outline" size={26} color="#FFFFFF" />
+        <Feather name="maximize" size={24} color="#FFFFFF" />
       </Touchable>
     </View>
   );

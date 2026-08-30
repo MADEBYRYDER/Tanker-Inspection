@@ -33,7 +33,7 @@ import {
 } from '../../src/ui/components';
 import { callNumber, canPlaceCalls } from '../../src/ui/platform';
 import { AllowanceRow, AllowanceSpent } from '../../src/ui/plus';
-import { radius, spacing, toneFor, type, useTheme, type StatusKey } from '../../src/ui/theme';
+import { fonts, radius, spacing, toneFor, type, useTheme, type StatusKey } from '../../src/ui/theme';
 
 const URGENCY: Record<
   ProblemTriage['urgency'],
@@ -175,7 +175,7 @@ export default function ProblemScanner() {
                       justifyContent: 'center',
                     }}
                   >
-                    <Text style={{ fontSize: 12.5, fontWeight: '700', color: theme.textSecondary }}>
+                    <Text style={{ fontSize: 12.5, fontFamily: fonts.sans[700], color: theme.textSecondary }}>
                       {index + 1}
                     </Text>
                   </View>

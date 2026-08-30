@@ -26,7 +26,7 @@ import {
 } from '../src/ui/components';
 import { PlusGate } from '../src/ui/plus';
 import { RecordConfidenceCard } from '../src/ui/recordConfidence';
-import { healthStatus, scoreBand, spacing, tabular, toneFor, useTheme } from '../src/ui/theme';
+import { fonts, healthStatus, scoreBand, spacing, tabular, toneFor, useTheme } from '../src/ui/theme';
 
 /**
  * Home Health, explained.
@@ -138,7 +138,7 @@ export default function HealthScreen() {
                 onPress={() => router.push(`/component/${component.componentId}`)}
               >
                 <Row justify="space-between">
-                  <Body style={{ fontWeight: '600' }}>{component.name}</Body>
+                  <Body style={{ fontFamily: fonts.sans[600] }}>{component.name}</Body>
                   <StatusPill status={status.key} label={status.label} />
                 </Row>
                 <View style={{ gap: spacing.sm }}>
@@ -210,10 +210,10 @@ export default function HealthScreen() {
 function HeroStat({ value, label }: { value: string; label: string }) {
   return (
     <View style={{ alignItems: 'center', gap: 1 }}>
-      <Text style={[{ color: '#FFFFFF', fontSize: 19, fontWeight: '700', letterSpacing: -0.5 }, tabular]}>
+      <Text style={[{ color: '#FFFFFF', fontSize: 19, fontFamily: fonts.sans[700], letterSpacing: -0.5 }, tabular]}>
         {value}
       </Text>
-      <Text style={{ color: 'rgba(255,255,255,0.55)', fontSize: 11.5, fontWeight: '600', letterSpacing: 0.3 }}>
+      <Text style={{ color: 'rgba(255,255,255,0.55)', fontSize: 11.5, fontFamily: fonts.sans[600], letterSpacing: 0.3 }}>
         {label.toUpperCase()}
       </Text>
     </View>

@@ -4,7 +4,7 @@ import { Text, View } from 'react-native';
 import type { RecordConfidence, RecordGap } from '../core/engine/recordConfidence';
 import { Body, Card, Divider, Meter, Row, SectionTitle, Small, Tertiary } from './components';
 import { Touchable } from './motion';
-import { radius, spacing, tabular, type, useTheme } from './theme';
+import { fonts, radius, spacing, tabular, type, useTheme } from './theme';
 
 /**
  * How much of the house Dwella knows, and what to add next.
@@ -108,7 +108,7 @@ function GapRow({ gap, onPress }: { gap: RecordGap; onPress: () => void }) {
           <Ionicons name={ICON[gap.kind]} size={15} color={theme.textSecondary} />
         </View>
         <View style={{ flex: 1 }}>
-          <Body style={{ fontWeight: '600' }}>{gap.label}</Body>
+          <Body style={{ fontFamily: fonts.sans[600] }}>{gap.label}</Body>
           <Tertiary>{gap.detail}</Tertiary>
         </View>
         <Ionicons name="chevron-forward" size={15} color={theme.textTertiary} />

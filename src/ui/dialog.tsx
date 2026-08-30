@@ -10,7 +10,7 @@ import {
 } from 'react';
 import { Modal, Pressable, Text, View } from 'react-native';
 import { Touchable } from './motion';
-import { elevation, radius, spacing, type, useTheme } from './theme';
+import { fonts, elevation, radius, spacing, type, useTheme } from './theme';
 
 /**
  * Confirmations and alerts that actually appear.
@@ -199,7 +199,7 @@ function DialogButton({
         alignItems: 'center',
       }}
     >
-      <Text style={{ color: palette.fg, fontSize: 15, fontWeight: '700' }}>{label}</Text>
+      <Text style={{ color: palette.fg, fontSize: 15, fontFamily: fonts.sans[700] }}>{label}</Text>
     </Touchable>
   );
 }

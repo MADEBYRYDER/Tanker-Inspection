@@ -32,7 +32,7 @@ import {
 } from '../src/ui/components';
 import { useKeyboardInset } from '../src/ui/keyboard';
 import { AllowanceRow, AllowanceSpent } from '../src/ui/plus';
-import { radius, spacing, type, useTheme } from '../src/ui/theme';
+import { fonts, radius, spacing, type, useTheme } from '../src/ui/theme';
 
 const STARTERS = [
   'What should I take care of this weekend?',
@@ -377,7 +377,7 @@ function WeekendTasks({ lastQuestion }: { lastQuestion: string }) {
       ))}
       <Pressable onPress={() => router.push('/(tabs)/tasks')}>
         <Row justify="space-between">
-          <Small style={{ color: theme.blue, fontWeight: '600' }}>Open full checklist</Small>
+          <Small style={{ color: theme.blue, fontFamily: fonts.sans[600] }}>Open full checklist</Small>
           <Ionicons name="chevron-forward" size={15} color={theme.blue} />
         </Row>
       </Pressable>

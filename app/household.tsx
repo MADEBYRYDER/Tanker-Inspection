@@ -31,7 +31,7 @@ import {
 import { useDialog } from '../src/ui/dialog';
 import { Touchable } from '../src/ui/motion';
 import { PlusGate } from '../src/ui/plus';
-import { spacing, type, useTheme } from '../src/ui/theme';
+import { fonts, spacing, type, useTheme } from '../src/ui/theme';
 
 /**
  * The household.
@@ -205,7 +205,7 @@ export default function Household() {
                       style={{ marginTop: 1 }}
                     />
                     <View style={{ flex: 1 }}>
-                      <Body style={{ fontWeight: '600' }}>{ROLE_LABEL[option]}</Body>
+                      <Body style={{ fontFamily: fonts.sans[600] }}>{ROLE_LABEL[option]}</Body>
                       <Tertiary>{ROLE_BLURB[option]}</Tertiary>
                     </View>
                   </Row>
@@ -238,7 +238,7 @@ export default function Household() {
               {index > 0 ? <Divider /> : null}
               <Row justify="space-between" gap={spacing.md}>
                 <View style={{ flex: 1 }}>
-                  <Body style={{ fontWeight: '600' }}>{period.ownerLabel}</Body>
+                  <Body style={{ fontFamily: fonts.sans[600] }}>{period.ownerLabel}</Body>
                   <Tertiary>
                     {formatDate(period.startedOn)} —{' '}
                     {period.endedOn ? formatDate(period.endedOn) : 'present'}

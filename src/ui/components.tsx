@@ -1,4 +1,4 @@
-import { Ionicons } from '@expo/vector-icons';
+import { Feather, Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import type { ReactNode } from 'react';
 import {
@@ -16,7 +16,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Circle, Defs, LinearGradient as SvgGradient, Stop } from 'react-native-svg';
 import { Enter, Touchable, useCountUp, useReveal } from './motion';
-import {
+import { fonts,
   elevation,
   heroGradient,
   radius,
@@ -200,6 +200,15 @@ export function Label({ children, color }: { children: ReactNode; color?: string
   );
 }
 
+/**
+ * A section heading.
+ *
+ * Set as a small letterspaced cap line rather than a large serif heading. The
+ * serif is reserved for things that title a *screen* — a run of big serif
+ * headings down a scrolling page competes with the content under each one, and
+ * the reader ends up navigating headings instead of reading rows. A cap line
+ * labels without shouting.
+ */
 export function SectionTitle({
   title,
   action,
@@ -212,7 +221,9 @@ export function SectionTitle({
   const theme = useTheme();
   return (
     <Row justify="space-between" style={{ marginBottom: -spacing.xs }}>
-      <Heading>{title}</Heading>
+      <Text style={[type.label, { color: theme.textTertiary, flex: 1 }]} numberOfLines={1}>
+        {title.toUpperCase()}
+      </Text>
       {action ? (
         <Touchable onPress={onAction} haptic="none" scaleTo={0.94}>
           <Row gap={2}>
@@ -282,7 +293,7 @@ export function StatusPill({
       <Text
         style={{
           fontSize: 12.5,
-          fontWeight: '600',
+          fontFamily: fonts.sans[600],
           letterSpacing: -0.1,
           color: solid ? theme.surface : tone.fg,
         }}
@@ -298,10 +309,13 @@ export function IconTile({
   icon,
   status = 'neutral',
   size = 44,
+  family = 'ionicons',
 }: {
   icon: IconName;
   status?: StatusKey;
   size?: number;
+  /** Category icons come from Feather; the rest of the app's glyphs are Ionicons. */
+  family?: 'ionicons' | 'feather';
 }) {
   const theme = useTheme();
   const tone = toneFor(theme, status);
@@ -323,7 +337,11 @@ export function IconTile({
         end={{ x: 0.9, y: 1 }}
         style={StyleSheet.absoluteFill}
       />
-      <Ionicons name={icon} size={size * 0.45} color={tone.fg} />
+      {family === 'feather' ? (
+        <Feather name={icon as never} size={size * 0.45} color={tone.fg} />
+      ) : (
+        <Ionicons name={icon} size={size * 0.45} color={tone.fg} />
+      )}
     </View>
   );
 }
@@ -418,7 +436,7 @@ export function Button({
       ) : icon ? (
         <Ionicons name={icon} size={metrics.icon} color={palette.fg} />
       ) : null}
-      <Text style={{ color: palette.fg, fontSize: metrics.font, fontWeight: '600', letterSpacing: -0.2 }}>
+      <Text style={{ color: palette.fg, fontSize: metrics.font, fontFamily: fonts.sans[600], letterSpacing: -0.2 }}>
         {label}
       </Text>
       {iconRight ? <Ionicons name={iconRight} size={metrics.icon} color={palette.fg} /> : null}
@@ -530,7 +548,7 @@ export function Chip({
         <Text
           style={{
             fontSize: 13.5,
-            fontWeight: '600',
+            fontFamily: fonts.sans[600],
             letterSpacing: -0.1,
             color: selected ? theme.onInk : theme.textSecondary,
           }}
@@ -615,7 +633,7 @@ export function ScoreRing({
         style={[
           {
             fontSize: size >= 130 ? 46 : size >= 100 ? 34 : 24,
-            fontWeight: '700',
+            fontFamily: fonts.sans[700],
             letterSpacing: size >= 130 ? -2 : -1.2,
             color: numberColor,
           },
@@ -627,7 +645,7 @@ export function ScoreRing({
       <Text
         style={{
           fontSize: size >= 130 ? 13.5 : 11.5,
-          fontWeight: '700',
+          fontFamily: fonts.sans[700],
           letterSpacing: 0.3,
           color: labelColor,
           marginTop: 1,
@@ -772,7 +790,7 @@ export function Tile({
       <View style={{ gap: 1 }}>
         <Text
           style={[
-            { fontSize: 24, fontWeight: '700', letterSpacing: -0.9, color: status === 'neutral' ? theme.text : tone.fg },
+            { fontSize: 24, fontFamily: fonts.sans[700], letterSpacing: -0.9, color: status === 'neutral' ? theme.text : tone.fg },
             tabular,
           ]}
           numberOfLines={1}
@@ -793,7 +811,7 @@ export function Stat({ value, label, color }: { value: string; label: string; co
     <View style={{ flex: 1, gap: 2 }}>
       <Text
         style={[
-          { fontSize: 21, fontWeight: '700', letterSpacing: -0.6, color: color ?? theme.text },
+          { fontSize: 21, fontFamily: fonts.sans[700], letterSpacing: -0.6, color: color ?? theme.text },
           tabular,
         ]}
         numberOfLines={1}

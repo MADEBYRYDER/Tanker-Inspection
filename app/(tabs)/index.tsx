@@ -1,4 +1,4 @@
-import { Ionicons } from '@expo/vector-icons';
+import { Feather, Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useMemo } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
@@ -45,6 +45,7 @@ import { DwellaLockup, DwellaMark } from '../../src/ui/logo';
 import { PlusGate } from '../../src/ui/plus';
 import { RecordConfidenceCard } from '../../src/ui/recordConfidence';
 import {
+  fonts,
   CATEGORY_ICON,
   CATEGORY_LABEL,
   elevation,
@@ -176,7 +177,7 @@ export default function Dashboard() {
                       justifyContent: 'center',
                     }}
                   >
-                    <Text style={{ color: '#FFFFFF', fontSize: 10.5, fontWeight: '700' }}>
+                    <Text style={{ color: '#FFFFFF', fontSize: 10.5, fontFamily: fonts.sans[700] }}>
                       {attentionCount > 9 ? '9+' : attentionCount}
                     </Text>
                   </View>
@@ -254,7 +255,7 @@ export default function Dashboard() {
                         {attentionCount} {attentionCount === 1 ? 'thing needs' : 'things need'}{' '}
                         attention
                       </BodyStrong>
-                      <Tertiary>Based on documented condition,{'\n'}age and maintenance.</Tertiary>
+                      <Tertiary>Based on documented condition, age and maintenance.</Tertiary>
                     </View>
                     {/*
                       The band name is already set large beside the ring, so the
@@ -543,7 +544,7 @@ function AttentionCard({
           </View>
         </Row>
         <Row gap={2}>
-          <Small style={{ color: theme.blue, fontWeight: '600' }}>{action}</Small>
+          <Small style={{ color: theme.blue, fontFamily: fonts.sans[600] }}>{action}</Small>
           <Ionicons name="chevron-forward" size={14} color={theme.blue} />
         </Row>
       </Row>
@@ -567,10 +568,10 @@ function DateChip({ date }: { date: string }) {
         justifyContent: 'center',
       }}
     >
-      <Text style={{ fontSize: 10, fontWeight: '700', letterSpacing: 0.4, color: theme.textTertiary }}>
+      <Text style={{ fontSize: 10, fontFamily: fonts.sans[700], letterSpacing: 0.4, color: theme.textTertiary }}>
         {(month ?? '').toUpperCase()}
       </Text>
-      <Text style={[{ fontSize: 16, fontWeight: '700', letterSpacing: -0.5, color: theme.text }, tabular]}>
+      <Text style={[{ fontSize: 16, fontFamily: fonts.sans[700], letterSpacing: -0.5, color: theme.text }, tabular]}>
         {(day ?? '').replace(',', '')}
       </Text>
     </View>
@@ -639,7 +640,7 @@ function SystemTile({
       }}
     >
       <Row justify="space-between" align="flex-start">
-        <IconTile icon={(CATEGORY_ICON[category] ?? 'cube-outline') as never} status={status.key} size={40} />
+        <IconTile icon={(CATEGORY_ICON[category] ?? 'box') as never} status={status.key} family="feather" size={40} />
         <Dotish status={status.key} />
       </Row>
       <View style={{ gap: 2 }}>
@@ -756,8 +757,8 @@ function SystemGlance({
                 elevation(theme, 1),
               ]}
             >
-              <Ionicons
-                name={(CATEGORY_ICON[category] ?? 'cube-outline') as never}
+              <Feather
+                name={(CATEGORY_ICON[category] ?? 'box') as never}
                 size={20}
                 color={tone.fg}
               />
@@ -771,7 +772,7 @@ function SystemGlance({
                 {CATEGORY_LABEL[category] ?? category}
               </Text>
               <Text
-                style={{ fontSize: 11, fontWeight: '600', color: tone.fg, textAlign: 'center' }}
+                style={{ fontSize: 11, fontFamily: fonts.sans[600], color: tone.fg, textAlign: 'center' }}
                 numberOfLines={1}
               >
                 {status.short}
@@ -798,7 +799,7 @@ function SystemGlance({
           >
             <Ionicons name="grid-outline" size={20} color={theme.textSecondary} />
             <Text style={[type.smallStrong, { color: theme.text }]}>+{rest} More</Text>
-            <Text style={{ fontSize: 11, fontWeight: '600', color: theme.textTertiary }}>
+            <Text style={{ fontSize: 11, fontFamily: fonts.sans[600], color: theme.textTertiary }}>
               View all
             </Text>
           </View>
@@ -857,7 +858,7 @@ function DueRow({
           <Text
             style={{
               fontSize: 13,
-              fontWeight: '600',
+              fontFamily: fonts.sans[600],
               color: needsPro ? theme.textSecondary : theme.amber,
             }}
           >

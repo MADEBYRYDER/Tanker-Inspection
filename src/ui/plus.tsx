@@ -6,7 +6,7 @@ import type { FeatureKey, UsageVerdict } from '../core/entitlements';
 import { usePlan } from '../state/plan';
 import { Badge, Card, Row, Small, Tertiary } from './components';
 import { Touchable } from './motion';
-import { radius, spacing, type, useTheme } from './theme';
+import { fonts, radius, spacing, type, useTheme } from './theme';
 
 /**
  * How Dwella+ shows up inside the app.
@@ -38,7 +38,7 @@ export function PlusMark({ size = 'sm' }: { size?: 'sm' | 'md' }) {
         style={{
           color: theme.onInk,
           fontSize: size === 'md' ? 12.5 : 11,
-          fontWeight: '700',
+          fontFamily: fonts.sans[700],
           letterSpacing: 0.2,
         }}
       >
@@ -106,7 +106,7 @@ export function PlusGate({
           alignItems: 'center',
         }}
       >
-        <Text style={{ color: theme.onInk, fontSize: 15, fontWeight: '700' }}>
+        <Text style={{ color: theme.onInk, fontSize: 15, fontFamily: fonts.sans[700] }}>
           {canStartTrial ? 'Try free for 30 days' : 'See Dwella+'}
         </Text>
       </Touchable>
@@ -211,7 +211,7 @@ export function AllowanceSpent({
           alignItems: 'center',
         }}
       >
-        <Text style={{ color: theme.onInk, fontSize: 14.5, fontWeight: '700' }}>
+        <Text style={{ color: theme.onInk, fontSize: 14.5, fontFamily: fonts.sans[700] }}>
           {canStartTrial ? 'Try Dwella+ free for 30 days' : 'See Dwella+'}
         </Text>
       </Touchable>

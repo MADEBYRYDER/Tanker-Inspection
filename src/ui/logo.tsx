@@ -1,6 +1,6 @@
 import { Text, View } from 'react-native';
 import Svg, { Path, Rect } from 'react-native-svg';
-import { type, useTheme } from './theme';
+import { fonts, type, useTheme } from './theme';
 
 /**
  * The Dwella mark.
@@ -113,7 +113,7 @@ export function DwellaLockup({
               color: taglineColor,
               fontSize: 8.6 * scale,
               letterSpacing: 1.5 * scale,
-              fontWeight: '600',
+              fontFamily: fonts.sans[600],
             }}
           >
             YOUR HOME, REMEMBERED

@@ -1,4 +1,4 @@
-import { Ionicons } from '@expo/vector-icons';
+import { Feather, Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { View } from 'react-native';
@@ -34,6 +34,7 @@ import {
   Title,
 } from '../../src/ui/components';
 import {
+  fonts,
   CATEGORY_ICON,
   CATEGORY_LABEL,
   healthStatus,
@@ -127,8 +128,8 @@ export default function ComponentProfile() {
                 justifyContent: 'center',
               }}
             >
-              <Ionicons
-                name={(CATEGORY_ICON[component.category] ?? 'cube-outline') as never}
+              <Feather
+                name={(CATEGORY_ICON[component.category] ?? 'box') as never}
                 size={22}
                 color={tone.fg}
               />
@@ -297,7 +298,7 @@ export default function ComponentProfile() {
                   {index > 0 ? <Divider /> : null}
                   <Row justify="space-between" align="flex-start" gap={spacing.md}>
                     <View style={{ width: 52 }}>
-                      <Small style={{ fontWeight: '600' }}>
+                      <Small style={{ fontFamily: fonts.sans[600] }}>
                         {formatDate(event.date).replace(/, \d{4}$/, '')}
                       </Small>
                       <Tertiary>{event.date.slice(0, 4)}</Tertiary>

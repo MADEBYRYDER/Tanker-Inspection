@@ -183,18 +183,53 @@ export const radius = {
  * What does the work instead is range: a 56px score against 12px labels, with
  * tight negative tracking on everything large.
  */
+/**
+ * The two faces.
+ *
+ * A custom family in React Native carries exactly one weight — `fontWeight`
+ * against a named face either does nothing or gets a synthetic smear — so every
+ * weight is its own family name and the scale below points at the right file
+ * rather than asking for a number.
+ */
+export const fonts = {
+  serif: {
+    600: 'PlayfairDisplay_600SemiBold',
+    700: 'PlayfairDisplay_700Bold',
+  },
+  sans: {
+    400: 'PlusJakartaSans_400Regular',
+    500: 'PlusJakartaSans_500Medium',
+    600: 'PlusJakartaSans_600SemiBold',
+    700: 'PlusJakartaSans_700Bold',
+  },
+} as const;
+
+/**
+ * Type scale.
+ *
+ * Playfair Display for anything that titles a screen or a card, Plus Jakarta
+ * Sans for everything read rather than glanced at. The pairing is the brand's:
+ * the wordmark is a high-contrast serif, and a product whose headings are set
+ * in the same voice as its logo feels like one thing.
+ *
+ * Figures are always sans. Playfair's numerals are proportional and old-style,
+ * which is handsome in a sentence and unusable in a column of money.
+ *
+ * What does the work beyond the faces is range: a 56px score against 11px
+ * labels, with tight negative tracking on everything large.
+ */
 export const type = {
-  mega: { fontSize: 56, fontWeight: '700' as const, letterSpacing: -2.4 },
-  hero: { fontSize: 40, fontWeight: '700' as const, letterSpacing: -1.5 },
-  display: { fontSize: 30, fontWeight: '700' as const, letterSpacing: -1 },
-  title: { fontSize: 25, fontWeight: '700' as const, letterSpacing: -0.7 },
-  heading: { fontSize: 18.5, fontWeight: '600' as const, letterSpacing: -0.4 },
-  subheading: { fontSize: 16, fontWeight: '600' as const, letterSpacing: -0.2 },
-  body: { fontSize: 15.5, fontWeight: '400' as const, lineHeight: 22.5 },
-  bodyStrong: { fontSize: 15.5, fontWeight: '600' as const, letterSpacing: -0.1 },
-  small: { fontSize: 13.5, fontWeight: '400' as const, lineHeight: 19.5 },
-  smallStrong: { fontSize: 13.5, fontWeight: '600' as const },
-  label: { fontSize: 11.5, fontWeight: '700' as const, letterSpacing: 0.8 },
+  mega: { fontSize: 56, fontFamily: fonts.sans[700], letterSpacing: -2.4 },
+  hero: { fontSize: 40, fontFamily: fonts.sans[700], letterSpacing: -1.5 },
+  display: { fontSize: 30, fontFamily: fonts.serif[700], letterSpacing: -0.6 },
+  title: { fontSize: 25, fontFamily: fonts.serif[600], letterSpacing: -0.4 },
+  heading: { fontSize: 19, fontFamily: fonts.serif[600], letterSpacing: -0.2 },
+  subheading: { fontSize: 16, fontFamily: fonts.sans[600], letterSpacing: -0.2 },
+  body: { fontSize: 15.5, fontFamily: fonts.sans[400], lineHeight: 23 },
+  bodyStrong: { fontSize: 15.5, fontFamily: fonts.sans[600], letterSpacing: -0.1 },
+  small: { fontSize: 13.5, fontFamily: fonts.sans[400], lineHeight: 20 },
+  smallStrong: { fontSize: 13.5, fontFamily: fonts.sans[600] },
+  label: { fontSize: 11, fontFamily: fonts.sans[700], letterSpacing: 0.9 },
 };
 
 /** Figures line up in columns. Essential anywhere numbers stack. */
@@ -388,19 +423,27 @@ export const CATEGORY_LABEL: Record<string, string> = {
   unassigned: 'Not linked',
 };
 
+/**
+ * Category icons, drawn from Feather.
+ *
+ * One stroke weight, rounded caps, no filled variants — which is what makes a
+ * strip of them read as a set rather than as twelve separately chosen pictures.
+ * Ionicons mixes optical weights across its outline glyphs, and side by side in
+ * the at-a-glance row that inconsistency is the first thing the eye finds.
+ */
 export const CATEGORY_ICON: Record<string, string> = {
-  hvac: 'thermometer-outline',
-  water_heater: 'water-outline',
-  roof: 'home-outline',
-  electrical: 'flash-outline',
-  plumbing: 'git-branch-outline',
-  appliance: 'cube-outline',
-  windows: 'browsers-outline',
-  exterior: 'leaf-outline',
-  flooring: 'layers-outline',
-  safety: 'shield-outline',
-  structure: 'business-outline',
-  other: 'ellipsis-horizontal-outline',
+  hvac: 'thermometer',
+  water_heater: 'droplet',
+  roof: 'home',
+  electrical: 'zap',
+  plumbing: 'git-merge',
+  appliance: 'box',
+  windows: 'grid',
+  exterior: 'sun',
+  flooring: 'layers',
+  safety: 'shield',
+  structure: 'columns',
+  other: 'more-horizontal',
 };
 
 export function greeting(now: Date = new Date()): string {
