@@ -40,6 +40,11 @@ export function redactForTransfer(record: HomeRecord, options: TransferOptions =
       // Free-text notes are where personal detail leaks; keep only what the owner
       // wrote as a description of the work itself.
       description: e.description,
+      // The job transfers; the seller's receipt for it does not. This is a
+      // pointer into their billing history, and it is only here because Dwella
+      // generated the entry from a charge — the buyer inherits the work and who
+      // did it, not a handle on somebody else's account.
+      sourceChargeId: undefined,
     }));
 
   const keptEventIds = new Set(events.map((e) => e.id));

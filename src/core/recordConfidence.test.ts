@@ -3,6 +3,7 @@ import { confidenceLabel, valueOrNotDetected, NOT_DETECTED } from './confidence'
 import { computeHomeHealth } from './engine/health';
 import { computeRecordConfidence } from './engine/recordConfidence';
 import type { Charge } from './billing';
+import { redactForTransfer } from './engine/transfer';
 import { missingServiceEvents, timelineEventForCharge } from './serviceLedger';
 import type { HomeComponent, HomeRecord, TimelineEvent } from './types';
 
@@ -247,5 +248,47 @@ describe('a service charge becomes home history', () => {
     const remaining = missingServiceEvents([charge, twin], stored, `${TODAY}T00:00:00.000Z`);
     expect(remaining).toHaveLength(1);
     expect(remaining[0]!.event.sourceChargeId).toBe('chg_2');
+  });
+});
+
+describe('what transfers with the property', () => {
+  const withService: HomeRecord = record({
+    events: [
+      {
+        id: 'evt_1',
+        homeId: 'h1',
+        date: '2026-08-14',
+        type: 'service',
+        title: 'Handyman visit — gutter downspout reattached',
+        description: 'Completed by Dwella. Receipt DW-2026-08-0018.',
+        costCents: 12_195,
+        vendor: 'Dwella',
+        documentIds: [],
+        photoIds: [],
+        source: 'contractor',
+        visibility: 'transferable',
+        sourceChargeId: 'chg_1',
+        createdAt: `${TODAY}T00:00:00.000Z`,
+      },
+    ],
+  });
+
+  it('hands the buyer the work and who did it', () => {
+    const copy = redactForTransfer(withService);
+    expect(copy.events).toHaveLength(1);
+    expect(copy.events[0]!.title).toContain('gutter downspout');
+    expect(copy.events[0]!.vendor).toBe('Dwella');
+  });
+
+  it('never hands the buyer a pointer into the seller’s billing', () => {
+    const copy = redactForTransfer(withService);
+    expect(copy.events[0]!.sourceChargeId).toBeUndefined();
+  });
+
+  it('withholds what the seller paid unless they choose otherwise', () => {
+    expect(redactForTransfer(withService).events[0]!.costCents).toBeUndefined();
+    expect(
+      redactForTransfer(withService, { includeCosts: true }).events[0]!.costCents,
+    ).toBe(12_195);
   });
 });
