@@ -148,6 +148,15 @@ export interface TimelineEvent {
   photoIds: string[];
   source: 'owner' | 'ai_document' | 'contractor' | 'system';
   visibility: Visibility;
+  /**
+   * The Dwella charge this entry was generated from, when it was.
+   *
+   * Present only on work Dwella itself carried out and billed. It makes the
+   * derivation idempotent — the same job cannot be entered twice — and lets a
+   * receipt and a maintenance record point at each other instead of being two
+   * unconnected assertions about the same afternoon.
+   */
+  sourceChargeId?: string;
   createdAt: ISODateTime;
 }
 
@@ -358,6 +367,17 @@ export interface Home {
   climate: 'humid_subtropical' | 'temperate' | 'cold' | 'arid' | 'coastal';
   /** Start of the current ownership period. Mirrored here so age maths stays local. */
   ownedSince?: ISODate;
+  /**
+   * Which of the account's cards this property bills to.
+   *
+   * Absent means "whatever the account default is", which is every property in
+   * V1 — the UI does not offer the choice yet. It exists now because the
+   * landlord case (personal card on the residence, business card on the
+   * rentals) makes it inevitable, and retrofitting per-property billing onto an
+   * account-level singleton once real charges reference it is a migration
+   * nobody wants to run. Resolve it through `paymentMethodFor`, never directly.
+   */
+  defaultPaymentMethodId?: string;
   createdAt: ISODateTime;
 }
 

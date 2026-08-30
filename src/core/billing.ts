@@ -288,6 +288,49 @@ export function cardExpiringSoon(method: PaymentMethod, asOf: ISODate = today())
   return expiry <= soon;
 }
 
+/**
+ * Which card a given property bills to.
+ *
+ * The account owns the cards; a property may point at one of them. V1 shows a
+ * single default and never offers the choice, but the resolution goes through
+ * here from the start, because the alternative is a schema where "the card" is
+ * an account-level singleton — and unpicking that later, once real charges have
+ * been written against it, is a migration with money attached.
+ *
+ * The shape it is built for is the landlord: a personal card on the house they
+ * live in, a business card on the three they let. That is not an edge case, it
+ * is the customer most likely to be paying for several properties at once.
+ *
+ * Falls back to the account default so a property that has never been given a
+ * card still bills correctly, and returns undefined only when there is no card
+ * at all.
+ */
+export function paymentMethodFor(
+  methods: PaymentMethod[],
+  options: { defaultPaymentMethodId?: string } = {},
+): PaymentMethod | undefined {
+  const assigned = options.defaultPaymentMethodId
+    ? methods.find((m) => m.id === options.defaultPaymentMethodId)
+    : undefined;
+  return assigned ?? methods.find((m) => m.isDefault) ?? methods[0];
+}
+
+/**
+ * Every property that bills to a given card.
+ *
+ * The question to answer before letting someone remove one: a card quietly
+ * detached from three rentals is three failed renewals next month.
+ */
+export function propertiesOnCard(
+  methodId: string,
+  properties: { id: string; defaultPaymentMethodId?: string }[],
+  methods: PaymentMethod[],
+): string[] {
+  return properties
+    .filter((p) => paymentMethodFor(methods, p)?.id === methodId)
+    .map((p) => p.id);
+}
+
 /* -------------------------------------------------------------------------
  * Charges
  * ---------------------------------------------------------------------- */
@@ -308,6 +351,10 @@ export interface Charge {
   /** Which card it went to, for the receipt. */
   paymentMethodId?: string;
   receiptNumber?: string;
+  /** Who did the work, for a service charge. Defaults to Dwella on the record. */
+  vendor?: string;
+  /** The equipment the work was on, when dispatch knew it. */
+  componentId?: string;
 }
 
 export interface StatementLine {

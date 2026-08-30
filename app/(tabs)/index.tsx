@@ -6,6 +6,7 @@ import { formatDate, relativeDayLabel, today } from '../../src/core/dates';
 import { resolveComponentAge } from '../../src/core/engine/age';
 import { computeForecast } from '../../src/core/engine/forecast';
 import { computeHomeHealth } from '../../src/core/engine/health';
+import { computeRecordConfidence } from '../../src/core/engine/recordConfidence';
 import { coverageSummary, warrantyAlerts } from '../../src/core/engine/warrantyIntelligence';
 import { generateTasks } from '../../src/core/engine/schedule';
 import { formatApprox, formatMoney } from '../../src/core/money';
@@ -36,6 +37,7 @@ import {
   Touchable,
 } from '../../src/ui/components';
 import { PlusGate } from '../../src/ui/plus';
+import { RecordConfidenceCard } from '../../src/ui/recordConfidence';
 import {
   CATEGORY_ICON,
   CATEGORY_LABEL,
@@ -87,6 +89,7 @@ export default function Dashboard() {
        */
       warrantyItems: warrantyAlerts(record, asOf).filter((a) => a.kind !== 'recently_lapsed'),
       coveredCount: coverageSummary(record, asOf).length,
+      confidence: computeRecordConfidence(record, { asOf }),
     };
   }, [record, asOf]);
 
@@ -103,7 +106,7 @@ export default function Dashboard() {
     );
   }
 
-  const { health, forecast, tasks, warrantyItems, coveredCount } = derived;
+  const { health, forecast, tasks, warrantyItems, coveredCount, confidence } = derived;
   const hasEquipment = record.components.length > 0;
 
   /*
@@ -167,7 +170,14 @@ export default function Dashboard() {
                   onDark
                 />
                 <View style={{ flex: 1, gap: spacing.sm }}>
-                  <Text style={[type.label, { color: 'rgba(255,255,255,0.5)' }]}>HOME HEALTH</Text>
+                  <Text style={[type.label, { color: 'rgba(255,255,255,0.5)' }]}>
+                    HOME HEALTH — {band.label.toUpperCase()}
+                  </Text>
+                  {/* Says what the number is about, so it is never read as a
+                      score for how well the owner has filled the record in. */}
+                  <Text style={[type.small, { color: 'rgba(255,255,255,0.5)' }]}>
+                    Based on documented condition, age and maintenance.
+                  </Text>
                   <Text style={[type.small, { color: 'rgba(255,255,255,0.86)' }]} numberOfLines={5}>
                     {health.summary}
                   </Text>
@@ -181,6 +191,19 @@ export default function Dashboard() {
           ) : null}
         </View>
       </HeroPanel>
+
+      {/*
+        Record Confidence sits directly under the health panel so the two read
+        as a pair and the difference between them is obvious: one is about the
+        building, one is about what we know of it. Only once there is equipment
+        to be incomplete about — on an empty home the scan prompt below is the
+        better ask.
+      */}
+      {hasEquipment ? (
+        <Enter>
+          <RecordConfidenceCard confidence={confidence} />
+        </Enter>
+      ) : null}
 
       {!hasEquipment ? (
         <Enter>

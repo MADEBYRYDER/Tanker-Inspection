@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { View } from 'react-native';
@@ -24,6 +25,7 @@ import {
   Screen,
   SectionTitle,
 } from '../../src/ui/components';
+import { NOT_DETECTED, REVIEW_THRESHOLD, confidenceLabel } from '../../src/core/confidence';
 import { useDialog } from '../../src/ui/dialog';
 import { CATEGORY_LABEL, spacing, useTheme } from '../../src/ui/theme';
 
@@ -77,12 +79,12 @@ export default function ScanReview() {
           type: 'inspection',
           title: `${component.name} added to the record`,
           description:
-            result.confidence >= 0.6
+            result.confidence >= REVIEW_THRESHOLD
               ? `Identified from photographs${result.manufacturedYearBasis ? `. ${result.manufacturedYearBasis}` : ''}`
               : 'Added by hand.',
           documentIds: [],
           photoIds: [],
-          source: result.confidence >= 0.6 ? 'ai_document' : 'owner',
+          source: result.confidence >= REVIEW_THRESHOLD ? 'ai_document' : 'owner',
           visibility: 'transferable',
         });
       }
@@ -155,7 +157,8 @@ function ResultCard({
   onRemove: () => void;
 }) {
   const theme = useTheme();
-  const lowConfidence = result.confidence < 0.6;
+  const confidence = confidenceLabel(result.confidence);
+  const lowConfidence = confidence.needsReview;
   const installDate = result.installedOn ?? '';
   const dateValid = installDate.length === 0 || isISODate(installDate);
 
@@ -164,8 +167,9 @@ function ResultCard({
       <Row justify="space-between" align="flex-start">
         <BodyStrong style={{ flex: 1 }}>{result.name || 'Unnamed equipment'}</BodyStrong>
         <Row gap={spacing.xs}>
+          {/* A band, never a percentage. See core/confidence.ts. */}
           <Badge
-            label={`${Math.round(result.confidence * 100)}% sure`}
+            label={confidence.label}
             fg={lowConfidence ? theme.amber : theme.sage}
             bg={lowConfidence ? theme.amberSoft : theme.sageSoft}
           />
@@ -180,10 +184,15 @@ function ResultCard({
 
       {lowConfidence ? (
         <Notice tone="attention" icon="eye-outline">
-          This is a low-confidence read. Check the model and serial against the label before saving —
-          the age, warranty status, and every cost projection are derived from them.
+          Hard to read. Check the model and serial against the label before saving — the age,
+          warranty status, and every cost projection are derived from them.
         </Notice>
-      ) : null}
+      ) : (
+        <Row gap={spacing.xs}>
+          <Ionicons name="checkmark-circle-outline" size={13} color={theme.sage} />
+          <Tertiary>{confidence.statement}</Tertiary>
+        </Row>
+      )}
 
       <Field label="Name" value={result.name} onChangeText={(name) => onChange({ name })} placeholder="Upstairs furnace" />
       <Field
@@ -214,20 +223,20 @@ function ResultCard({
         label="Manufacturer"
         value={result.manufacturer ?? ''}
         onChangeText={(v) => onChange({ manufacturer: v || null })}
-        placeholder="Not read from the label"
+        placeholder={NOT_DETECTED}
       />
       <Field
         label="Model number"
         value={result.modelNumber ?? ''}
         onChangeText={(v) => onChange({ modelNumber: v || null })}
-        placeholder="Not read from the label"
+        placeholder={NOT_DETECTED}
         autoCapitalize="characters"
       />
       <Field
         label="Serial number"
         value={result.serialNumber ?? ''}
         onChangeText={(v) => onChange({ serialNumber: v || null })}
-        placeholder="Not read from the label"
+        placeholder={NOT_DETECTED}
         autoCapitalize="characters"
       />
 
@@ -328,7 +337,7 @@ function toComponent(
     photos: [],
     documentIds: [],
     identificationConfidence: result.confidence,
-    identificationSource: result.confidence >= 0.6 ? 'ai_scan' : 'manual',
+    identificationSource: result.confidence >= REVIEW_THRESHOLD ? 'ai_scan' : 'manual',
     openQuestions: result.openQuestions,
     notes: result.notes || undefined,
   };

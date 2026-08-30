@@ -44,6 +44,7 @@ import type {
   ServiceRequestDelivery,
   TimelineEvent,
 } from '../core/types';
+import { missingServiceEvents } from '../core/serviceLedger';
 import { newId, nowISO } from './ids';
 
 /**
@@ -147,6 +148,8 @@ interface StoreState {
   addEvent: (input: Omit<TimelineEvent, 'id' | 'homeId' | 'createdAt'>) => TimelineEvent;
   updateEvent: (id: string, patch: Partial<TimelineEvent>) => void;
   removeEvent: (id: string) => void;
+  /** Writes the Home Record entry for any Dwella service charge that lacks one. */
+  reconcileServiceCharges: () => void;
 
   /* Documents & media */
   addDocument: (input: Omit<DocumentRef, 'id' | 'homeId' | 'addedAt'>) => DocumentRef;
@@ -408,6 +411,12 @@ export const useStore = create<StoreState>()(
                   createdAt: nowISO(),
                 }
               : undefined);
+          // Charges carry the account id so a receipt can always be traced to
+          // the person billed, not just the building it was for.
+          const loadedCharges =
+            billing && account
+              ? billing.charges.map((c) => ({ ...c, accountId: account.id }))
+              : state.charges;
           const membership: Membership | undefined = account
             ? {
                 id: newId('mem'),
@@ -438,7 +447,19 @@ export const useStore = create<StoreState>()(
             ],
             activePropertyId: record.home.id,
             components: [...state.components.filter((c) => c.homeId !== record.home.id), ...record.components],
-            events: [...state.events.filter((e) => e.homeId !== record.home.id), ...record.events],
+            /*
+             * Work Dwella did and billed for becomes home history here rather
+             * than being written into the fixture twice. The charge is the
+             * origin; the timeline entry is derived from it, so the two can
+             * never disagree about what happened or what it cost.
+             */
+            events: [
+              ...state.events.filter((e) => e.homeId !== record.home.id),
+              ...record.events,
+              ...missingServiceEvents(loadedCharges, record.events, nowISO()).map(
+                ({ propertyId, event }) => ({ ...event, id: newId('evt'), homeId: propertyId }),
+              ),
+            ],
             documents: [...state.documents.filter((d) => d.homeId !== record.home.id), ...record.documents],
             completions: [...state.completions.filter((c) => c.homeId !== record.home.id), ...record.completions],
             serviceRequests: [
@@ -456,10 +477,7 @@ export const useStore = create<StoreState>()(
               ? [{ ...billing.paymentMethod, id: newId('pm'), isDefault: true, addedAt: nowISO() }]
               : state.paymentMethods,
             careVisits: billing ? billing.careVisits : state.careVisits,
-            charges:
-              billing && account
-                ? billing.charges.map((c) => ({ ...c, accountId: account.id }))
-                : state.charges,
+            charges: loadedCharges,
           };
         }),
 
@@ -574,6 +592,30 @@ export const useStore = create<StoreState>()(
         set((state) => ({ events: [...state.events, event] }));
         return event;
       },
+
+      /*
+       * Turns Dwella's own completed work into home history.
+       *
+       * Called wherever charges can arrive — on load, after a migration — and
+       * safe to call repeatedly: `missingServiceEvents` keys off
+       * `sourceChargeId`, so a job already in the timeline is skipped rather
+       * than entered again.
+       */
+      reconcileServiceCharges: () =>
+        set((state) => {
+          const pending = missingServiceEvents(state.charges, state.events, nowISO());
+          if (pending.length === 0) return state;
+          return {
+            events: [
+              ...state.events,
+              ...pending.map(({ propertyId, event }) => ({
+                ...event,
+                id: newId('evt'),
+                homeId: propertyId,
+              })),
+            ],
+          };
+        }),
 
       updateEvent: (id, patch) =>
         set((state) => ({ events: state.events.map((e) => (e.id === id ? { ...e, ...patch } : e)) })),
@@ -908,7 +950,7 @@ export const useStore = create<StoreState>()(
     }),
     {
       name: 'dwella-record-v1',
-      version: 3,
+      version: 4,
       storage: createJSONStorage(() => AsyncStorage),
       // Conversation scrollback is not part of the home's permanent record.
       partialize: (state) => ({
@@ -986,7 +1028,28 @@ export const useStore = create<StoreState>()(
             careVisits: [],
           } as never;
         }
-        if (version >= 3) return persisted as never;
+        /*
+         * v3 → v4: back-fill the Home Record entries for service work Dwella
+         * had already carried out and billed. Those charges existed before the
+         * timeline knew about them, so an account upgrading from v3 would
+         * otherwise have a receipt for a job with no record of the job.
+         */
+        if (version === 3) {
+          const v3 = persisted as { charges?: Charge[]; events?: TimelineEvent[]; [k: string]: unknown };
+          const pending = missingServiceEvents(v3.charges ?? [], v3.events ?? [], nowISO());
+          return {
+            ...v3,
+            events: [
+              ...(v3.events ?? []),
+              ...pending.map(({ propertyId, event }) => ({
+                ...event,
+                id: newId('evt'),
+                homeId: propertyId,
+              })),
+            ],
+          } as never;
+        }
+        if (version >= 4) return persisted as never;
         const old = persisted as {
           home?: Home & { ownerName?: string; contactPhone?: string };
           documents?: DocumentRef[];

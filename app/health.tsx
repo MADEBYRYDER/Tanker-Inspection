@@ -4,6 +4,7 @@ import { useMemo } from 'react';
 import { Text, View } from 'react-native';
 import { today } from '../src/core/dates';
 import { computeHomeHealth } from '../src/core/engine/health';
+import { computeRecordConfidence } from '../src/core/engine/recordConfidence';
 import { usePlan } from '../src/state/plan';
 import { useHomeRecord } from '../src/state/store';
 import {
@@ -24,6 +25,7 @@ import {
   Title,
 } from '../src/ui/components';
 import { PlusGate } from '../src/ui/plus';
+import { RecordConfidenceCard } from '../src/ui/recordConfidence';
 import { healthStatus, scoreBand, spacing, tabular, toneFor, useTheme } from '../src/ui/theme';
 
 /**
@@ -66,6 +68,7 @@ export default function HealthScreen() {
   const band = scoreBand(health.score);
 
   const documentedPct = Math.round(health.dataConfidence * 100);
+  const confidence = computeRecordConfidence(record, { asOf: today() });
   const attention = health.components.filter(
     (c) => c.status === 'aging' || c.status === 'plan_replacement' || c.status === 'unknown',
   );
@@ -169,6 +172,13 @@ export default function HealthScreen() {
           }
         />
       )}
+
+      {/*
+        Record Confidence, kept as its own object rather than folded into the
+        score above. The house does not get healthier because we learned more
+        about it, so the progress bar and the "add these" prompt live here.
+      */}
+      <RecordConfidenceCard confidence={confidence} />
 
       <Card tone={theme.surfaceSunken}>
         <Label>What is known vs. inferred</Label>

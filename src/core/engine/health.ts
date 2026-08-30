@@ -243,11 +243,20 @@ function buildSummary(
       `${homeOverdueCount} whole-home ${homeOverdueCount === 1 ? 'task is' : 'tasks are'} overdue.`,
     );
   }
+  /*
+   * A caveat on how the score was reached, not a request for more data.
+   *
+   * "Adding install dates will make this more accurate" used to live here, and
+   * it was the wrong place for it: it implied the owner could raise the health
+   * of the building by typing, when what they would actually be raising is our
+   * confidence in the estimate. That prompt now belongs to Record Confidence,
+   * which is the number it is honestly about.
+   */
   const pct = Math.round(dataConfidence * 100);
   parts.push(
     pct >= 70
-      ? `${pct}% of this score rests on documented dates.`
-      : `Only ${pct}% of this score rests on documented dates — the rest is estimated from typical lifespans. Adding install dates will make it more accurate.`,
+      ? `${pct}% of this rests on documented dates.`
+      : `${pct}% of this rests on documented dates; the rest is estimated from typical service life.`,
   );
   return parts.join(' ');
 }

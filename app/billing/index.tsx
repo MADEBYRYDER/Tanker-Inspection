@@ -7,6 +7,7 @@ import {
   TIERS,
   cardExpiringSoon,
   cardSummary,
+  paymentMethodFor,
   currentPeriod,
   priceSubscriptions,
   statementFor,
@@ -104,7 +105,13 @@ export default function Billing() {
   );
   const periods = statementPeriods(visibleCharges);
   const statement = statementFor(visibleCharges, period, nameOf);
-  const card = paymentMethods.find((m) => m.isDefault) ?? paymentMethods[0];
+  /*
+   * One card, shown as the account default. Resolution still goes through
+   * `paymentMethodFor` rather than picking the default inline, so the day this
+   * screen gains a per-property card picker, nothing about how a charge finds
+   * its card has to change.
+   */
+  const card = paymentMethodFor(paymentMethods);
 
   /* Properties the viewer can see the plan for, whether or not they see billing. */
   const planVisible = useMemo(() => {
