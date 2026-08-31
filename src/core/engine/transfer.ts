@@ -52,7 +52,10 @@ export function redactForTransfer(record: HomeRecord, options: TransferOptions =
   const keptDocumentIds = new Set(documents.map((d) => d.id));
 
   return {
-    home: record.home,
+    // The building's facts transfer; the seller's photograph of it does not.
+    // It is a picture somebody took, not something documented about the house,
+    // and it can hold whoever was standing on the porch that afternoon.
+    home: { ...record.home, photoUri: undefined },
     components: record.components.map((c) => ({
       ...c,
       notes: undefined, // owner's private annotations

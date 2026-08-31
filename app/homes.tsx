@@ -15,7 +15,7 @@ import {
   Card,
   Divider,
   Enter,
-  IconTile,
+  HomePhoto,
   Row,
   Screen,
   SectionTitle,
@@ -23,8 +23,10 @@ import {
   Tertiary,
   Title,
 } from '../src/ui/components';
+import { pickHomePhoto } from '../src/ui/capture';
+import { useDialog } from '../src/ui/dialog';
 import { Touchable } from '../src/ui/motion';
-import { healthStatus, radius, spacing, tabular, type, useTheme } from '../src/ui/theme';
+import { radius, spacing, tabular, type, useTheme } from '../src/ui/theme';
 
 /**
  * My Homes.
@@ -49,7 +51,33 @@ export default function Homes() {
   const documents = useStore((s) => s.documents);
   const serviceRequests = useStore((s) => s.serviceRequests);
   const { priceOfAdding } = usePlan();
+  const setHomePhoto = useStore((s) => s.setHomePhoto);
+  const { confirm } = useDialog();
   const asOf = today();
+
+  /*
+   * Picking a photo, and removing one.
+   *
+   * A home that already has a picture asks first, because the tile is also the
+   * thing you tap by accident reaching for the card, and silently replacing a
+   * photo is a small loss with no undo.
+   */
+  const attachPhoto = async (propertyId: string, nickname: string, hasPhoto: boolean) => {
+    if (hasPhoto) {
+      const replace = await confirm({
+        title: `Photo of ${nickname}`,
+        message: 'Choose a different picture, or remove the one that is there.',
+        confirmLabel: 'Choose another',
+        cancelLabel: 'Remove it',
+      });
+      if (!replace) {
+        setHomePhoto(propertyId, undefined);
+        return;
+      }
+    }
+    const uri = await pickHomePhoto();
+    if (uri) setHomePhoto(propertyId, uri);
+  };
 
   /*
    * Each property's summary is computed from its own slice of the flat arrays.
@@ -118,11 +146,26 @@ export default function Homes() {
                 }
               >
                 <Row gap={spacing.md} align="flex-start">
-                  <IconTile
-                    icon={typeIcon as never}
-                    status={summary && summary.attention > 0 ? 'attention' : 'neutral'}
-                    size={44}
-                  />
+                  {/*
+                    The picture of the house, and the way to add one.
+                    Tapping the tile picks a photo instead of opening the home,
+                    which is the one place on this card where that is the more
+                    useful thing to do — the rest of the card already opens it.
+                  */}
+                  <Touchable
+                    onPress={() => void attachPhoto(home.id, home.nickname, Boolean(home.photoUri))}
+                    accessibilityLabel={
+                      home.photoUri ? `Change the photo of ${home.nickname}` : `Add a photo of ${home.nickname}`
+                    }
+                    scaleTo={0.94}
+                  >
+                    <HomePhoto
+                      photoUri={home.photoUri}
+                      icon={typeIcon as never}
+                      status={summary && summary.attention > 0 ? 'attention' : 'neutral'}
+                      size={56}
+                    />
+                  </Touchable>
                   <View style={{ flex: 1, gap: 3 }}>
                     <Row gap={spacing.sm}>
                       <Text style={[type.subheading, { color: theme.text, flex: 1 }]} numberOfLines={1}>

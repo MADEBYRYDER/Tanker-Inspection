@@ -1,4 +1,5 @@
 import { Feather, Ionicons } from '@expo/vector-icons';
+import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import type { ReactNode } from 'react';
 import {
@@ -343,6 +344,49 @@ export function IconTile({
         <Ionicons name={icon} size={size * 0.45} color={tone.fg} />
       )}
     </View>
+  );
+}
+
+/**
+ * A picture of the building, wherever a property is named.
+ *
+ * Falls back to the property-type tile rather than to a grey rectangle with a
+ * camera on it. Most homes will not have a photo for a long time — asking for
+ * one is not part of setup, deliberately — and a list of empty placeholders
+ * reads as a list of things you have failed to do. The tile is a finished state
+ * that happens to become a photograph if you give it one.
+ */
+export function HomePhoto({
+  photoUri,
+  icon,
+  status = 'neutral',
+  size = 44,
+}: {
+  photoUri?: string;
+  /** The property-type glyph, shown when there is no photograph. */
+  icon: IconName;
+  status?: StatusKey;
+  size?: number;
+}) {
+  const theme = useTheme();
+  if (!photoUri) return <IconTile icon={icon} status={status} size={size} />;
+  return (
+    <Image
+      source={{ uri: photoUri }}
+      style={{
+        width: size,
+        height: size,
+        borderRadius: size * 0.32,
+        // A hairline keeps a photograph that runs pale at the edges from
+        // bleeding into the card behind it.
+        borderWidth: StyleSheet.hairlineWidth,
+        borderColor: theme.border,
+        backgroundColor: theme.surfaceSunken,
+      }}
+      contentFit="cover"
+      transition={160}
+      accessibilityLabel="Photo of this home"
+    />
   );
 }
 

@@ -1,5 +1,6 @@
 import type { CareVisit, Charge, PaymentMethod, PropertySubscription } from '../core/billing';
 import type { DocumentRef, HomeComponent, HomeRecord, MediaRef, TimelineEvent } from '../core/types';
+import { SAMPLE_HOME_PHOTO } from './sampleHomePhoto';
 
 /**
  * A worked example of a real home record.
@@ -424,6 +425,7 @@ export function buildSampleRecord(): {
         yearBuilt: 1998,
         squareFeet: 2400,
         climate: 'coastal',
+        photoUri: SAMPLE_HOME_PHOTO,
         ownedSince: '2019-07-15',
         createdAt: '2024-01-15T10:00:00.000Z',
       },

@@ -591,6 +591,20 @@ describe('transfer to a new owner', () => {
     expect(transferred.serviceRequests).toHaveLength(0);
   });
 
+  it('withholds the seller’s photograph of the house', () => {
+    const record = sample();
+    record.home.photoUri = 'data:image/jpeg;base64,AAAA';
+    const transferred = redactForTransfer(record);
+    // The building's facts transfer; a picture somebody took of it does not —
+    // it is not documented about the house, and it can hold whoever was
+    // standing on the porch. The address and the record ID must survive it.
+    expect(transferred.home.photoUri).toBeUndefined();
+    expect(transferred.home.publicId).toBe(record.home.publicId);
+    expect(transferred.home.addressLine1).toBe(record.home.addressLine1);
+    // And redaction must not mutate the owner's own copy.
+    expect(record.home.photoUri).toBe('data:image/jpeg;base64,AAAA');
+  });
+
   it('withholds what the previous owner paid by default', () => {
     const transferred = redactForTransfer(sample());
     expect(transferred.events.every((e) => e.costCents === undefined)).toBe(true);

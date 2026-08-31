@@ -1,4 +1,5 @@
 import { Feather, Ionicons } from '@expo/vector-icons';
+import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { useMemo } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
@@ -196,37 +197,62 @@ export default function Dashboard() {
             </Touchable>
           </Row>
 
-          <View style={{ gap: 3 }}>
-            <Text style={[type.title, { color: '#FFFFFF' }]}>
-              {firstName ? `${greeting()}, ${firstName}.` : `${greeting()}.`}
-            </Text>
-            {/*
-              Which home this is, and a way to change it. Sitting under the
-              greeting rather than in a menu because on an account holding
-              several properties, "which house am I looking at" is a question
-              that has to be answered before anything else on the screen means
-              anything.
-            */}
-            <Touchable onPress={() => router.push('/homes')} scaleTo={0.98}>
-              <Row gap={6}>
-                <Ionicons name="location-outline" size={13} color="rgba(255,255,255,0.55)" />
-                {/*
-                  A home named after its address should not print the address
-                  twice. Setup derives the nickname from the street line, so on
-                  a fresh property these are the same string.
-                */}
-                <Text style={[type.small, { color: 'rgba(255,255,255,0.62)' }]} numberOfLines={1}>
-                  {record.home.nickname}
-                  {record.home.addressLine1 && record.home.addressLine1 !== record.home.nickname
-                    ? ` · ${record.home.addressLine1}`
-                    : ''}
-                </Text>
-                {propertyCount > 1 ? (
-                  <Ionicons name="chevron-down" size={13} color="rgba(255,255,255,0.55)" />
-                ) : null}
-              </Row>
-            </Touchable>
-          </View>
+          {/*
+            Greeting, and which house this is.
+            The photograph sits beside both rather than above them: on an
+            account holding several properties the picture is the fastest
+            answer to "am I looking at the right home", faster than reading
+            the name under it.
+          */}
+          <Row gap={spacing.md} align="center">
+            {record.home.photoUri ? (
+              <Touchable
+                onPress={() => router.push('/homes')}
+                accessibilityLabel={`${record.home.nickname} — switch home`}
+                scaleTo={0.94}
+              >
+                <Image
+                  source={{ uri: record.home.photoUri }}
+                  style={{
+                    width: 52,
+                    height: 52,
+                    borderRadius: radius.md,
+                    borderWidth: 1,
+                    borderColor: 'rgba(255,255,255,0.18)',
+                  }}
+                  contentFit="cover"
+                  transition={160}
+                />
+              </Touchable>
+            ) : null}
+            <View style={{ gap: 3, flex: 1 }}>
+              <Text style={[type.title, { color: '#FFFFFF' }]}>
+                {firstName ? `${greeting()}, ${firstName}.` : `${greeting()}.`}
+              </Text>
+              <Touchable onPress={() => router.push('/homes')} scaleTo={0.98}>
+                <Row gap={6}>
+                  <Ionicons name="location-outline" size={13} color="rgba(255,255,255,0.55)" />
+                  {/*
+                    A home named after its address should not print the address
+                    twice. Setup derives the nickname from the street line, so on
+                    a fresh property these are the same string.
+                  */}
+                  <Text
+                    style={[type.small, { color: 'rgba(255,255,255,0.62)', flexShrink: 1 }]}
+                    numberOfLines={1}
+                  >
+                    {record.home.nickname}
+                    {record.home.addressLine1 && record.home.addressLine1 !== record.home.nickname
+                      ? ` · ${record.home.addressLine1}`
+                      : ''}
+                  </Text>
+                  {propertyCount > 1 ? (
+                    <Ionicons name="chevron-down" size={13} color="rgba(255,255,255,0.55)" />
+                  ) : null}
+                </Row>
+              </Touchable>
+            </View>
+          </Row>
 
           {hasEquipment ? (
             <>

@@ -132,6 +132,67 @@ export async function pickPhotos(role?: string, limit = 4): Promise<CapturedImag
   return normalized.filter((image): image is CapturedImage => Boolean(image));
 }
 
+/*
+ * A picture of the house itself.
+ *
+ * Nothing to do with the scan pipeline: this never reaches the model, it is
+ * shown at about 60 points beside a name, and it has to survive being written
+ * to storage and read back months later. So it is resized far harder than a
+ * nameplate — 720px is generous for a thumbnail and keeps a home's photo near
+ * 60 KB, which matters because the whole record shares one modest storage
+ * budget and a household with five properties would otherwise spend it here.
+ */
+const HOME_PHOTO_LONG_EDGE = 720;
+const HOME_PHOTO_QUALITY = 0.7;
+
+/**
+ * Opens the photo library and returns a small JPEG data URI, or undefined if
+ * the person cancelled or did not grant access.
+ *
+ * A data URI rather than the picker's own `uri`: that one is a cache path on
+ * a phone and a blob handle on the web, and both are gone by the time anybody
+ * looks at this home again.
+ */
+export async function pickHomePhoto(): Promise<string | undefined> {
+  const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+  if (!permission.granted) {
+    notify('Photo access is off', 'Turn on photo access in Settings to add a picture of your home.');
+    return undefined;
+  }
+  const result = await ImagePicker.launchImageLibraryAsync({
+    mediaTypes: ['images'],
+    quality: 1,
+    base64: false,
+    allowsMultipleSelection: false,
+    allowsEditing: true,
+    aspect: [4, 3],
+    exif: false,
+  });
+  const asset = result.canceled ? undefined : result.assets[0];
+  if (!asset) return undefined;
+
+  try {
+    const context = ImageManipulator.manipulate(asset.uri);
+    const longEdge = Math.max(asset.width ?? 0, asset.height ?? 0);
+    if (longEdge > HOME_PHOTO_LONG_EDGE) {
+      const portrait = (asset.height ?? 0) >= (asset.width ?? 0);
+      context.resize(portrait ? { height: HOME_PHOTO_LONG_EDGE } : { width: HOME_PHOTO_LONG_EDGE });
+    }
+    const image = await context.renderAsync();
+    const saved = await image.saveAsync({
+      compress: HOME_PHOTO_QUALITY,
+      format: SaveFormat.JPEG,
+      base64: true,
+    });
+    if (saved.base64) return `data:image/jpeg;base64,${saved.base64}`;
+  } catch {
+    // Fall through. A photo that cannot be resized is one we decline to store
+    // rather than one we write at full size into a record that has to persist.
+  }
+  notify('Could not use that photo', 'Try a different picture, or one taken with the camera.');
+  return undefined;
+}
+
 /** Strips the extra UI fields before sending. */
 export function toPayload(image: CapturedImage): ImagePayload {
   return { data: image.data, mediaType: image.mediaType, role: image.role };

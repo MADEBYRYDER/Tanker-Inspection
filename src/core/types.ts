@@ -365,6 +365,20 @@ export interface Home {
   squareFeet?: number;
   /** Rough climate bucket; nudges seasonal scheduling and corrosion-sensitive lifespans. */
   climate: 'humid_subtropical' | 'temperate' | 'cold' | 'arid' | 'coastal';
+  /**
+   * A picture of the building, held as a small JPEG data URI.
+   *
+   * Stored inline rather than as a file path because the record is what
+   * survives: a `file://` from the picker points into a cache the OS may clear,
+   * and on web it is a `blob:` that dies with the tab, so either would leave a
+   * home whose photo silently vanished. Downscaled hard on the way in — this is
+   * a thumbnail beside a name, not evidence, and every home's photo shares the
+   * same few megabytes of storage.
+   *
+   * It is the owner's photo, not a documented fact about the building, so it
+   * does not survive a transfer. See `redactForTransfer`.
+   */
+  photoUri?: string;
   /** Start of the current ownership period. Mirrored here so age maths stays local. */
   ownedSince?: ISODate;
   /**

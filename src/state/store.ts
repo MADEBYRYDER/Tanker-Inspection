@@ -116,6 +116,14 @@ interface StoreState {
     input: Omit<Home, 'id' | 'publicId' | 'createdAt'> & { relationship?: Relationship },
   ) => Home;
   updateHome: (patch: Partial<Home>) => void;
+  /**
+   * Set or clear a property's photograph.
+   *
+   * Takes the property explicitly rather than patching the active one, because
+   * My Homes lists every property and adding a picture there should not first
+   * make you switch to that house.
+   */
+  setHomePhoto: (propertyId: string, photoUri: string | undefined) => void;
   setActiveProperty: (propertyId: string) => void;
   removeProperty: (propertyId: string) => void;
   resetEverything: () => void;
@@ -384,6 +392,11 @@ export const useStore = create<StoreState>()(
           properties: state.properties.map((p) =>
             p.id === state.activePropertyId ? { ...p, ...patch } : p,
           ),
+        })),
+
+      setHomePhoto: (propertyId, photoUri) =>
+        set((state) => ({
+          properties: state.properties.map((p) => (p.id === propertyId ? { ...p, photoUri } : p)),
         })),
 
       setActiveProperty: (propertyId) =>
