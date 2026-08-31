@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { nicknameFor, suggestAddresses } from './address';
 import {
   ASSIGNABLE_ROLES,
   ROLE_PERMISSIONS,
@@ -15,6 +16,9 @@ import {
   type Membership,
   type OwnershipPeriod,
   type Role,
+  roleForRelationship,
+  opensOwnershipPeriod,
+  canTransferProperty,
 } from './account';
 
 const NOW = '2026-08-30T12:00:00.000Z';
@@ -284,5 +288,69 @@ describe('public identifiers', () => {
     for (const seed of [0, 0.5, 0.999999]) {
       expect(generatePublicId(() => seed)).toMatch(/^DW-\d{6}$/);
     }
+  });
+});
+
+describe('relationship is not the same thing as role', () => {
+  /*
+   * The distinction exists so that a letting agent can run a record without
+   * being able to sell the building. If either half of that came apart, the
+   * separation would be decorative.
+   */
+  it('lets everyone administer the record they created', () => {
+    for (const relationship of ['owner', 'renter', 'manager', 'household'] as const) {
+      const role = roleForRelationship(relationship);
+      expect(ROLE_PERMISSIONS[role]).toContain('add_records');
+      expect(ROLE_PERMISSIONS[role]).toContain('edit_records');
+      expect(ROLE_PERMISSIONS[role]).toContain('manage_members');
+    }
+  });
+
+  it('opens an ownership period only for an owner', () => {
+    expect(opensOwnershipPeriod('owner')).toBe(true);
+    for (const other of ['renter', 'manager', 'household'] as const) {
+      expect(opensOwnershipPeriod(other)).toBe(false);
+    }
+  });
+
+  it('offers transfer only to an owner, however capable the role', () => {
+    const canEverything = () => true;
+    expect(canTransferProperty(canEverything, 'owner')).toBe(true);
+    for (const other of ['renter', 'manager', 'household'] as const) {
+      expect(canTransferProperty(canEverything, other)).toBe(false);
+    }
+  });
+
+  it('still refuses an owner who lacks the permission', () => {
+    expect(canTransferProperty(() => false, 'owner')).toBe(false);
+  });
+
+  it('refuses when the relationship is unknown', () => {
+    expect(canTransferProperty(() => true, undefined)).toBe(false);
+  });
+});
+
+describe('address suggestions', () => {
+  it('says nothing until there is something to go on', () => {
+    expect(suggestAddresses('')).toHaveLength(0);
+    expect(suggestAddresses('1')).toHaveLength(0);
+  });
+
+  it('matches on word starts, not substrings', () => {
+    const hits = suggestAddresses('main');
+    expect(hits.some((h) => h.line1 === '123 Main Street')).toBe(true);
+    // "ain" is inside "Main" but starts no word, so it must not match.
+    expect(suggestAddresses('ain')).toHaveLength(0);
+  });
+
+  it('narrows as more words are typed', () => {
+    const broad = suggestAddresses('charleston');
+    const narrow = suggestAddresses('charleston ashley');
+    expect(narrow.length).toBeLessThan(broad.length);
+  });
+
+  it('derives a nickname so setup never has to ask for one', () => {
+    expect(nicknameFor({ line1: '123 Main Street' })).toBe('123 Main Street');
+    expect(nicknameFor({ line1: '  ' })).toBe('Home');
   });
 });

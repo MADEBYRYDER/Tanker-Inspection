@@ -124,11 +124,87 @@ export function ownershipHistory(
 
 export type Role = 'owner' | 'admin' | 'member' | 'manager' | 'viewer' | 'professional';
 
+/**
+ * What someone *is* to a building, as distinct from what they can *do* to the
+ * record of it.
+ *
+ * Role answers "may this person edit the timeline". Relationship answers "is
+ * this their house". They come apart constantly: a letting agent who set the
+ * record up needs to administer it and must never be offered the transfer
+ * button, and a tenant keeping a record of the flat they rent is not its owner
+ * however complete they make it.
+ *
+ * Collapsing the two — the obvious shortcut, since the person who creates a
+ * property usually does own it — is what would eventually let a property
+ * manager sell a client's house from inside the app.
+ */
+export type Relationship = 'owner' | 'renter' | 'manager' | 'household';
+
+export const RELATIONSHIPS: {
+  key: Relationship;
+  label: string;
+  blurb: string;
+  icon: string;
+}[] = [
+  { key: 'owner', label: 'Owner', blurb: 'You own this property.', icon: 'key' },
+  { key: 'renter', label: 'Renter', blurb: 'You live here but do not own it.', icon: 'home' },
+  {
+    key: 'manager',
+    label: 'Property manager',
+    blurb: 'You look after it for the owner.',
+    icon: 'briefcase',
+  },
+  {
+    key: 'household',
+    label: 'Family or household member',
+    blurb: 'You live here with the owner.',
+    icon: 'users',
+  },
+];
+
+/**
+ * The role someone gets on a property they created themselves.
+ *
+ * Whoever sets a record up has to be able to run it — nobody should build an
+ * inventory they then cannot edit — so all four relationships administer their
+ * own property. What changes is ownership: only an owner gets an ownership
+ * period and, through `canTransferProperty`, the ability to hand the building
+ * on.
+ */
+export function roleForRelationship(relationship: Relationship): Role {
+  return relationship === 'manager' ? 'admin' : 'owner';
+}
+
+/** Only an owner's tenure is recorded as an ownership period on the building. */
+export function opensOwnershipPeriod(relationship: Relationship): boolean {
+  return relationship === 'owner';
+}
+
+/**
+ * Transferring is an owner's act, and the permission alone is not enough.
+ *
+ * A renter or a manager holds the `transfer_property` permission because they
+ * administer the record they built. Selling the building is a different thing,
+ * and this is the gate that keeps those apart.
+ */
+export function canTransferProperty(
+  can: (permission: Permission) => boolean,
+  relationship: Relationship | undefined,
+): boolean {
+  return can('transfer_property') && relationship === 'owner';
+}
+
 export interface Membership {
   id: string;
   accountId: string;
   propertyId: string;
   role: Role;
+  /**
+   * What this person is to the building. Absent on memberships created before
+   * the distinction existed, which are treated as owners — that was the only
+   * thing the app could create at the time.
+   */
+  relationship?: Relationship;
   /** Denormalised so a members list renders without resolving every account. */
   displayName: string;
   email?: string;

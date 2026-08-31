@@ -5,6 +5,7 @@ import { ScrollView, StyleSheet, View } from 'react-native';
 import { formatDate, relativeDayLabel, today } from '../../src/core/dates';
 import { resolveComponentAge } from '../../src/core/engine/age';
 import { computeForecast } from '../../src/core/engine/forecast';
+import { guidedProgress } from '../../src/core/engine/guided';
 import { computeHomeHealth } from '../../src/core/engine/health';
 import { computeRecordConfidence } from '../../src/core/engine/recordConfidence';
 import { coverageSummary, warrantyAlerts } from '../../src/core/engine/warrantyIntelligence';
@@ -41,6 +42,7 @@ import {
   Title,
   Touchable,
 } from '../../src/ui/components';
+import { BuildYourRecord } from '../../src/ui/buildRecord';
 import { DwellaLockup, DwellaMark } from '../../src/ui/logo';
 import { PlusGate } from '../../src/ui/plus';
 import { RecordConfidenceCard } from '../../src/ui/recordConfidence';
@@ -98,6 +100,7 @@ export default function Dashboard() {
       warrantyItems: warrantyAlerts(record, asOf).filter((a) => a.kind !== 'recently_lapsed'),
       coveredCount: coverageSummary(record, asOf).length,
       confidence: computeRecordConfidence(record, { asOf }),
+      guided: guidedProgress(record),
     };
   }, [record, asOf]);
 
@@ -114,7 +117,14 @@ export default function Dashboard() {
     );
   }
 
-  const { health, forecast, tasks, warrantyItems, coveredCount, confidence } = derived;
+  const { health, forecast, tasks, warrantyItems, coveredCount, confidence, guided } = derived;
+  /*
+   * A record still being built gets the checklist; a built one gets the plain
+   * measure. The threshold is the point at which "what is missing" stops being
+   * the most useful thing to say about a home — past it, a list of unticked
+   * boxes is nagging rather than guidance.
+   */
+  const stillBuilding = confidence.percent < 60;
   const hasEquipment = record.components.length > 0;
 
   /*
@@ -200,9 +210,16 @@ export default function Dashboard() {
             <Touchable onPress={() => router.push('/homes')} scaleTo={0.98}>
               <Row gap={6}>
                 <Ionicons name="location-outline" size={13} color="rgba(255,255,255,0.55)" />
+                {/*
+                  A home named after its address should not print the address
+                  twice. Setup derives the nickname from the street line, so on
+                  a fresh property these are the same string.
+                */}
                 <Text style={[type.small, { color: 'rgba(255,255,255,0.62)' }]} numberOfLines={1}>
                   {record.home.nickname}
-                  {record.home.addressLine1 ? ` · ${record.home.addressLine1}` : ''}
+                  {record.home.addressLine1 && record.home.addressLine1 !== record.home.nickname
+                    ? ` · ${record.home.addressLine1}`
+                    : ''}
                 </Text>
                 {propertyCount > 1 ? (
                   <Ionicons name="chevron-down" size={13} color="rgba(255,255,255,0.55)" />
@@ -322,6 +339,20 @@ export default function Dashboard() {
       </HeroPanel>
 
       {/* ---- Your home at a glance --------------------------------------- */}
+      {/*
+        Early on, the checklist. It carries the same percentage as the panel in
+        the hero, so the two never disagree about how complete the record is.
+      */}
+      {hasEquipment && stillBuilding ? (
+        <Enter>
+          <BuildYourRecord
+            confidence={confidence}
+            progress={guided}
+            onContinue={() => router.push('/scan/guided')}
+          />
+        </Enter>
+      ) : null}
+
       {hasEquipment ? (
         <Enter>
           <View style={{ gap: spacing.md }}>

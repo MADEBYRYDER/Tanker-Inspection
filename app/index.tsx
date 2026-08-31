@@ -13,6 +13,7 @@ export default function Index() {
   const theme = useTheme();
   const hydrated = useStore((s) => s.hydrated);
   const hasProperty = useStore((s) => s.activePropertyId !== undefined);
+  const hasAccount = useStore((s) => s.account !== undefined);
 
   if (!hydrated) {
     return (
@@ -22,5 +23,13 @@ export default function Index() {
     );
   }
 
-  return <Redirect href={hasProperty ? '/(tabs)' : '/onboarding'} />;
+  /*
+   * Three states, in the order they happen: no account, an account with no
+   * property, and a home to open. Somebody who signed in and then abandoned
+   * setup lands back on the address step rather than at the welcome screen —
+   * being asked to sign in again for an account you already have reads as the
+   * app having lost you.
+   */
+  if (!hasAccount) return <Redirect href="/welcome" />;
+  return <Redirect href={hasProperty ? '/(tabs)' : '/setup/address'} />;
 }

@@ -1,11 +1,18 @@
 import { useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { View } from 'react-native';
+import { canTransferProperty } from '../../src/core/account';
 import { isISODate, today } from '../../src/core/dates';
 import { buildHomeRecordReport, renderReportText } from '../../src/core/engine/transfer';
 import { formatMoney } from '../../src/core/money';
 import { usePlan } from '../../src/state/plan';
-import { useHomeRecord, useOwnership, usePermissions, useStore } from '../../src/state/store';
+import {
+  useHomeRecord,
+  useOwnership,
+  usePermissions,
+  useRelationship,
+  useStore,
+} from '../../src/state/store';
 import {
   Badge,
   Body,
@@ -54,7 +61,13 @@ export default function HomeRecordScreen() {
   const [transferring, setTransferring] = useState(false);
   const [buyerName, setBuyerName] = useState('');
   const [saleDate, setSaleDate] = useState(today());
-  const canTransfer = mayDo('transfer_property');
+  /*
+   * Permission and standing are both required. A renter or a letting agent who
+   * created this record administers it — and must never be offered the button
+   * that hands the building to somebody else.
+   */
+  const relationship = useRelationship();
+  const canTransfer = canTransferProperty(mayDo, relationship);
   const [forTransfer, setForTransfer] = useState(false);
   const [includeCosts, setIncludeCosts] = useState(false);
 
@@ -304,7 +317,11 @@ export default function HomeRecordScreen() {
             />
           )
         ) : (
-          <Tertiary>Only an owner can transfer this property.</Tertiary>
+          <Tertiary>
+            {relationship && relationship !== 'owner'
+              ? 'Transferring a property is the owner\u2019s to do. You can keep the record, but not hand the building on.'
+              : 'Only an owner can transfer this property.'}
+          </Tertiary>
         )}
       </Card>
     </Screen>

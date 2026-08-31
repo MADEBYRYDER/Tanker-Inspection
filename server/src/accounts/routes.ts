@@ -1,5 +1,5 @@
 import express, { type NextFunction, type Request, type Response, type Router } from 'express';
-import { randomBytes } from 'node:crypto';
+import { randomBytes, randomInt } from 'node:crypto';
 import { z } from 'zod';
 import {
   ASSIGNABLE_ROLES,
@@ -108,7 +108,18 @@ export function accountsRouter(): Router {
         .safeParse(req.body);
       if (!parsed.success) throw new AuthError(400, 'A valid email is required.');
 
-      const code = randomBytes(4).toString('hex');
+      /*
+       * Six digits, not hex.
+       *
+       * This is typed by hand off a notification, often one-handed, sometimes by
+       * somebody standing in a basement next to a water heater. Digits are what
+       * a numeric keypad offers and what people expect from a code; `a3f9b201`
+       * is a password by another name.
+       *
+       * The space is a million, which is small — so it is rate-limited by being
+       * single-use and short-lived, the same way every other six-digit code is.
+       */
+      const code = String(randomInt(0, 1_000_000)).padStart(6, '0');
       codes.set(code, { email: parsed.data.email, expiresAt: Date.now() + CODE_TTL_MS });
 
       const canEcho = process.env.DWELLA_ECHO_SIGNIN_CODES === '1';

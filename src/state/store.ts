@@ -19,6 +19,8 @@ import type { MeteredKey } from '../core/entitlements';
 import {
   canRemoveMember,
   generatePublicId,
+  opensOwnershipPeriod,
+  roleForRelationship,
   householdFor,
   ownershipHistory,
   permissionsFor,
@@ -26,6 +28,7 @@ import {
   type Membership,
   type OwnershipPeriod,
   type Permission,
+  type Relationship,
   type Role,
 } from '../core/account';
 import { buildServiceRequestPacket } from '../core/engine/serviceRequest';
@@ -109,7 +112,9 @@ interface StoreState {
   updateAccount: (patch: Partial<Account>) => void;
 
   /* Properties */
-  addProperty: (input: Omit<Home, 'id' | 'publicId' | 'createdAt'>) => Home;
+  addProperty: (
+    input: Omit<Home, 'id' | 'publicId' | 'createdAt'> & { relationship?: Relationship },
+  ) => Home;
   updateHome: (patch: Partial<Home>) => void;
   setActiveProperty: (propertyId: string) => void;
   removeProperty: (propertyId: string) => void;
@@ -324,7 +329,7 @@ export const useStore = create<StoreState>()(
       updateAccount: (patch) =>
         set((state) => (state.account ? { account: { ...state.account, ...patch } } : state)),
 
-      addProperty: (input) => {
+      addProperty: ({ relationship = 'owner', ...input }) => {
         const state = get();
         const account = state.account;
         const home: Home = {
@@ -343,23 +348,32 @@ export const useStore = create<StoreState>()(
               id: newId('mem'),
               accountId: account.id,
               propertyId: home.id,
-              role: 'owner',
+              role: roleForRelationship(relationship),
+              relationship,
               displayName: account.displayName,
               email: account.email,
               addedAt: nowISO(),
             }
           : undefined;
-        const period: OwnershipPeriod = {
-          id: newId('own'),
-          propertyId: home.id,
-          accountId: account?.id,
-          ownerLabel: account?.displayName ?? 'Current owner',
-          startedOn: input.ownedSince ?? today(),
-        };
+        /*
+         * Only an owner's tenure is a period of ownership. A renter or a letting
+         * agent creating the record is not part of the building's chain of title
+         * and must not appear in it — that history outlives all of them and is
+         * what the next owner inherits.
+         */
+        const period: OwnershipPeriod | undefined = opensOwnershipPeriod(relationship)
+          ? {
+              id: newId('own'),
+              propertyId: home.id,
+              accountId: account?.id,
+              ownerLabel: account?.displayName ?? 'Current owner',
+              startedOn: input.ownedSince ?? today(),
+            }
+          : undefined;
         set((s) => ({
           properties: [...s.properties, home],
           memberships: membership ? [...s.memberships, membership] : s.memberships,
-          ownership: [...s.ownership, period],
+          ownership: period ? [...s.ownership, period] : s.ownership,
           activePropertyId: home.id,
         }));
         return home;
@@ -1229,6 +1243,26 @@ export function useProperties(): { home: Home; role?: Role; isActive: boolean }[
 }
 
 /** What the signed-in viewer may do on the active property. */
+/**
+ * What the signed-in account is to the active property.
+ *
+ * Undefined when there is no membership, and treated as `owner` by callers when
+ * a membership predates the field — that was the only thing the app could
+ * create before relationships existed.
+ */
+export function useRelationship(): Relationship | undefined {
+  const account = useStore((s) => s.account);
+  const memberships = useStore((s) => s.memberships);
+  const activePropertyId = useStore((s) => s.activePropertyId);
+  return useMemo(() => {
+    if (!account || !activePropertyId) return undefined;
+    const mine = memberships.find(
+      (m) => m.accountId === account.id && m.propertyId === activePropertyId,
+    );
+    return mine ? (mine.relationship ?? 'owner') : undefined;
+  }, [account, memberships, activePropertyId]);
+}
+
 export function usePermissions(): { role?: Role; can: (permission: Permission) => boolean } {
   const account = useStore((s) => s.account);
   const memberships = useStore((s) => s.memberships);

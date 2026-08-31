@@ -63,6 +63,18 @@ export default function RootLayout() {
       >
         <Stack.Screen name="index" options={{ headerShown: false }} />
         <Stack.Screen name="onboarding" options={{ headerShown: false }} />
+
+        {/*
+          Setup. No headers and no titles: every one of these screens leads with
+          its own question, and a nav bar repeating it costs a strip of phone for
+          nothing. Back is still available by gesture.
+        */}
+        <Stack.Screen name="welcome" options={{ headerShown: false }} />
+        <Stack.Screen name="auth/email" options={{ title: '' }} />
+        <Stack.Screen name="setup/address" options={{ title: '' }} />
+        <Stack.Screen name="setup/relationship" options={{ title: '' }} />
+        <Stack.Screen name="setup/first-scan" options={{ headerShown: false }} />
+        <Stack.Screen name="claim" options={{ title: '' }} />
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
 
         <Stack.Screen name="scan/guided" options={{ title: 'Scan My Home' }} />
