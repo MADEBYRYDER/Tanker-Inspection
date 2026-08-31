@@ -1,15 +1,15 @@
-import { Feather } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { Text, View } from 'react-native';
 import { Button, Row, Screen, Small, Tertiary, Title } from '../../src/ui/components';
 import { radius, spacing, type, useTheme } from '../../src/ui/theme';
 
 const STARTERS = [
-  { icon: 'thermometer', label: 'HVAC' },
-  { icon: 'droplet', label: 'Water heater' },
-  { icon: 'box', label: 'Appliances' },
-  { icon: 'zap', label: 'Electrical' },
-  { icon: 'git-merge', label: 'Plumbing' },
+  { icon: 'thermometer-outline', label: 'HVAC' },
+  { icon: 'water-outline', label: 'Water heater' },
+  { icon: 'cube-outline', label: 'Appliances' },
+  { icon: 'flash-outline', label: 'Electrical' },
+  { icon: 'git-network-outline', label: 'Plumbing' },
 ];
 
 /**
@@ -41,7 +41,7 @@ export default function FirstScan() {
             justifyContent: 'center',
           }}
         >
-          <Feather name="maximize" size={32} color="#FFFFFF" />
+          <Ionicons name="scan-outline" size={32} color="#FFFFFF" />
         </View>
         <View style={{ gap: spacing.sm }}>
           <Title style={{ textAlign: 'center' }}>Let's teach Dwella about your home.</Title>
@@ -63,7 +63,7 @@ export default function FirstScan() {
               paddingVertical: 7,
             }}
           >
-            <Feather name={starter.icon as never} size={13} color={theme.textSecondary} />
+            <Ionicons name={starter.icon as never} size={13} color={theme.textSecondary} />
             <Text style={[type.smallStrong, { color: theme.textSecondary }]}>{starter.label}</Text>
           </Row>
         ))}

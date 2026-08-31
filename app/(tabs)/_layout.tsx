@@ -1,4 +1,4 @@
-import { Feather } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import { Tabs } from 'expo-router';
 import { Platform, StyleSheet, View } from 'react-native';
@@ -47,14 +47,14 @@ export default function TabsLayout() {
         name="index"
         options={{
           title: 'Home',
-          tabBarIcon: ({ color }) => <Feather name="home" size={21} color={color} />,
+          tabBarIcon: ({ color }) => <Ionicons name="home-outline" size={21} color={color} />,
         }}
       />
       <Tabs.Screen
         name="timeline"
         options={{
           title: 'Timeline',
-          tabBarIcon: ({ color }) => <Feather name="clock" size={21} color={color} />,
+          tabBarIcon: ({ color }) => <Ionicons name="time-outline" size={21} color={color} />,
         }}
       />
       <Tabs.Screen
@@ -70,14 +70,14 @@ export default function TabsLayout() {
         name="tasks"
         options={{
           title: 'Tasks',
-          tabBarIcon: ({ color }) => <Feather name="clipboard" size={21} color={color} />,
+          tabBarIcon: ({ color }) => <Ionicons name="clipboard-outline" size={21} color={color} />,
         }}
       />
       <Tabs.Screen
         name="profile"
         options={{
           title: 'Profile',
-          tabBarIcon: ({ color }) => <Feather name="user" size={21} color={color} />,
+          tabBarIcon: ({ color }) => <Ionicons name="person-outline" size={21} color={color} />,
         }}
       />
     </Tabs>
@@ -136,7 +136,7 @@ function ScanButton({ onPress }: { onPress: () => void }) {
           elevation(theme, 3),
         ]}
       >
-        <Feather name="maximize" size={24} color="#FFFFFF" />
+        <Ionicons name="scan-outline" size={24} color="#FFFFFF" />
       </Touchable>
     </View>
   );

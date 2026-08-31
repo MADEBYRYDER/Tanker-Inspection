@@ -1,4 +1,4 @@
-import { Feather, Ionicons } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import type { ReactNode } from 'react';
@@ -310,13 +310,10 @@ export function IconTile({
   icon,
   status = 'neutral',
   size = 44,
-  family = 'ionicons',
 }: {
   icon: IconName;
   status?: StatusKey;
   size?: number;
-  /** Category icons come from Feather; the rest of the app's glyphs are Ionicons. */
-  family?: 'ionicons' | 'feather';
 }) {
   const theme = useTheme();
   const tone = toneFor(theme, status);
@@ -338,11 +335,7 @@ export function IconTile({
         end={{ x: 0.9, y: 1 }}
         style={StyleSheet.absoluteFill}
       />
-      {family === 'feather' ? (
-        <Feather name={icon as never} size={size * 0.45} color={tone.fg} />
-      ) : (
-        <Ionicons name={icon} size={size * 0.45} color={tone.fg} />
-      )}
+      <Ionicons name={icon} size={size * 0.45} color={tone.fg} />
     </View>
   );
 }

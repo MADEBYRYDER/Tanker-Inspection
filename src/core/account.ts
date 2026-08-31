@@ -146,19 +146,19 @@ export const RELATIONSHIPS: {
   blurb: string;
   icon: string;
 }[] = [
-  { key: 'owner', label: 'Owner', blurb: 'You own this property.', icon: 'key' },
-  { key: 'renter', label: 'Renter', blurb: 'You live here but do not own it.', icon: 'home' },
+  { key: 'owner', label: 'Owner', blurb: 'You own this property.', icon: 'key-outline' },
+  { key: 'renter', label: 'Renter', blurb: 'You live here but do not own it.', icon: 'home-outline' },
   {
     key: 'manager',
     label: 'Property manager',
     blurb: 'You look after it for the owner.',
-    icon: 'briefcase',
+    icon: 'briefcase-outline',
   },
   {
     key: 'household',
     label: 'Family or household member',
     blurb: 'You live here with the owner.',
-    icon: 'users',
+    icon: 'people-outline',
   },
 ];
 

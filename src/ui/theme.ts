@@ -436,26 +436,30 @@ export const CATEGORY_LABEL: Record<string, string> = {
 };
 
 /**
- * Category icons, drawn from Feather.
+ * Category icons.
  *
- * One stroke weight, rounded caps, no filled variants — which is what makes a
- * strip of them read as a set rather than as twelve separately chosen pictures.
- * Ionicons mixes optical weights across its outline glyphs, and side by side in
- * the at-a-glance row that inconsistency is the first thing the eye finds.
+ * The outline cuts only, never the filled ones, so a strip of them reads as a
+ * set rather than as twelve separately chosen pictures.
+ *
+ * These were Feather, chosen for its single stroke weight. Feather rendered as
+ * empty boxes on a phone while Ionicons — registered through the same loader,
+ * on the same screen — came through, so the app now draws from one icon font
+ * instead of two. A slightly less even stroke is worth a great deal less than
+ * an icon that is there.
  */
 export const CATEGORY_ICON: Record<string, string> = {
-  hvac: 'thermometer',
-  water_heater: 'droplet',
-  roof: 'home',
-  electrical: 'zap',
-  plumbing: 'git-merge',
-  appliance: 'box',
-  windows: 'grid',
-  exterior: 'sun',
-  flooring: 'layers',
-  safety: 'shield',
-  structure: 'columns',
-  other: 'more-horizontal',
+  hvac: 'thermometer-outline',
+  water_heater: 'water-outline',
+  roof: 'home-outline',
+  electrical: 'flash-outline',
+  plumbing: 'git-network-outline',
+  appliance: 'cube-outline',
+  windows: 'grid-outline',
+  exterior: 'sunny-outline',
+  flooring: 'layers-outline',
+  safety: 'shield-outline',
+  structure: 'business-outline',
+  other: 'ellipsis-horizontal',
 };
 
 export function greeting(now: Date = new Date()): string {

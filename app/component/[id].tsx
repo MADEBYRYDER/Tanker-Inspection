@@ -1,4 +1,4 @@
-import { Feather, Ionicons } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { View } from 'react-native';
@@ -128,7 +128,7 @@ export default function ComponentProfile() {
                 justifyContent: 'center',
               }}
             >
-              <Feather
+              <Ionicons
                 name={(CATEGORY_ICON[component.category] ?? 'box') as never}
                 size={22}
                 color={tone.fg}

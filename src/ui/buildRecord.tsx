@@ -1,4 +1,4 @@
-import { Feather } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { Text, View } from 'react-native';
 import type { GuidedProgress } from '../core/engine/guided';
@@ -82,7 +82,7 @@ export function BuildYourRecord({
             marginTop: spacing.xs,
           }}
         >
-          <Feather name="maximize" size={16} color={theme.onInk} />
+          <Ionicons name="scan-outline" size={16} color={theme.onInk} />
           <Text style={{ fontSize: 15, fontFamily: fonts.sans[600], color: theme.onInk }}>
             Continue Home Scan
           </Text>
@@ -109,13 +109,13 @@ function StepRow({
   const theme = useTheme();
   const body = (
     <Row gap={spacing.md} align="center">
-      <Feather
-        name={done ? 'check-circle' : 'circle'}
+      <Ionicons
+        name={done ? 'checkmark-circle' : 'ellipse-outline'}
         size={17}
         color={done ? theme.sage : theme.textTertiary}
       />
       <Small style={{ flex: 1, color: done ? theme.textSecondary : theme.text }}>{label}</Small>
-      {onPress ? <Feather name="chevron-right" size={15} color={theme.textTertiary} /> : null}
+      {onPress ? <Ionicons name="chevron-forward" size={15} color={theme.textTertiary} /> : null}
     </Row>
   );
   return onPress ? (

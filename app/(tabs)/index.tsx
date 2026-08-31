@@ -1,4 +1,4 @@
-import { Feather, Ionicons } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { useMemo } from 'react';
@@ -697,7 +697,7 @@ function SystemTile({
       }}
     >
       <Row justify="space-between" align="flex-start">
-        <IconTile icon={(CATEGORY_ICON[category] ?? 'box') as never} status={status.key} family="feather" size={40} />
+        <IconTile icon={(CATEGORY_ICON[category] ?? 'cube-outline') as never} status={status.key} size={40} />
         <Dotish status={status.key} />
       </Row>
       <View style={{ gap: 2 }}>
@@ -814,7 +814,7 @@ function SystemGlance({
                 elevation(theme, 1),
               ]}
             >
-              <Feather
+              <Ionicons
                 name={(CATEGORY_ICON[category] ?? 'box') as never}
                 size={20}
                 color={tone.fg}

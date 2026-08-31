@@ -1,4 +1,4 @@
-import { Feather } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Text, View } from 'react-native';
@@ -101,7 +101,7 @@ export default function SetupRelationship() {
                       justifyContent: 'center',
                     }}
                   >
-                    <Feather
+                    <Ionicons
                       name={option.icon as never}
                       size={18}
                       color={selected ? '#FFFFFF' : theme.textSecondary}
@@ -119,7 +119,7 @@ export default function SetupRelationship() {
                     </Text>
                     <Tertiary>{option.blurb}</Tertiary>
                   </View>
-                  {selected ? <Feather name="check" size={18} color={theme.sage} /> : null}
+                  {selected ? <Ionicons name="checkmark" size={18} color={theme.sage} /> : null}
                 </Row>
               </Card>
             </Touchable>

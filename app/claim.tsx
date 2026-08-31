@@ -1,4 +1,4 @@
-import { Feather } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Text, View } from 'react-native';
@@ -88,7 +88,7 @@ export default function Claim() {
               justifyContent: 'center',
             }}
           >
-            <Feather name="home" size={18} color={theme.sage} />
+            <Ionicons name="home-outline" size={18} color={theme.sage} />
           </View>
           <View style={{ flex: 1, gap: 4 }}>
             <Text style={{ fontSize: 15.5, fontFamily: fonts.sans[600], color: theme.text }}>
@@ -116,7 +116,7 @@ export default function Claim() {
               justifyContent: 'center',
             }}
           >
-            <Feather name="users" size={18} color={theme.blue} />
+            <Ionicons name="people-outline" size={18} color={theme.blue} />
           </View>
           <View style={{ flex: 1, gap: 4 }}>
             <Text style={{ fontSize: 15.5, fontFamily: fonts.sans[600], color: theme.text }}>

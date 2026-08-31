@@ -48,7 +48,16 @@ import type {
   TimelineEvent,
 } from '../core/types';
 import { missingServiceEvents } from '../core/serviceLedger';
+import { SAMPLE_HOME_PHOTO } from '../data/sampleHomePhoto';
 import { newId, nowISO } from './ids';
+
+/**
+ * Marsh Point's record ID, quoted here so the v4 migration can recognise the
+ * sample home without importing the whole sample dataset into the store.
+ * A property ID belongs to the building for good, which is what makes it safe
+ * to match on.
+ */
+const SAMPLE_PUBLIC_ID = 'DW-829173';
 
 /**
  * The home record store.
@@ -977,7 +986,7 @@ export const useStore = create<StoreState>()(
     }),
     {
       name: 'dwella-record-v1',
-      version: 4,
+      version: 5,
       storage: createJSONStorage(() => AsyncStorage),
       // Conversation scrollback is not part of the home's permanent record.
       partialize: (state) => ({
@@ -1076,7 +1085,29 @@ export const useStore = create<StoreState>()(
             ],
           } as never;
         }
-        if (version >= 4) return persisted as never;
+        /*
+         * v4 → v5: give the sample home its picture.
+         *
+         * Only the sample, and only if it has none. A record written before
+         * `photoUri` existed is otherwise stuck without one forever — the
+         * sample data is read at load time, not merged into what is already
+         * stored — so anybody who explored Marsh Point before this change would
+         * keep looking at a house with no photograph and reasonably conclude
+         * the feature had not shipped. A real property is left alone: an empty
+         * photo there is a photo its owner has not taken yet, not a gap to fill.
+         */
+        if (version === 4) {
+          const v4 = persisted as { properties?: Home[]; [k: string]: unknown };
+          return {
+            ...v4,
+            properties: (v4.properties ?? []).map((p) =>
+              p.publicId === SAMPLE_PUBLIC_ID && !p.photoUri
+                ? { ...p, photoUri: SAMPLE_HOME_PHOTO }
+                : p,
+            ),
+          } as never;
+        }
+        if (version >= 5) return persisted as never;
         const old = persisted as {
           home?: Home & { ownerName?: string; contactPhone?: string };
           documents?: DocumentRef[];
