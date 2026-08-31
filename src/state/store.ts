@@ -48,6 +48,11 @@ import type {
   TimelineEvent,
 } from '../core/types';
 import { missingServiceEvents } from '../core/serviceLedger';
+import {
+  buildWaitlistEntry,
+  type WaitlistDraft,
+  type WaitlistEntry,
+} from '../core/waitlist';
 import { SAMPLE_HOME_PHOTO } from '../data/sampleHomePhoto';
 import { newId, nowISO } from './ids';
 
@@ -240,6 +245,18 @@ interface StoreState {
   careVisits: CareVisit[];
   usage: UsageState;
 
+  /**
+   * People whose area Dwella has not opened yet.
+   *
+   * Kept in the record rather than fired off and forgotten, because until an
+   * accounts server is configured there is nowhere to fire it off *to* — and a
+   * waitlist that silently drops the entry is worse than no waitlist. Each entry
+   * carries whether it actually reached Dwella, so the screen can say which.
+   */
+  waitlist: WaitlistEntry[];
+  /** Records a waitlist entry. Returns undefined if the address had no ZIP. */
+  joinWaitlist: (draft: WaitlistDraft) => WaitlistEntry | undefined;
+
   /** Starts the one-time trial on a property. */
   beginTrial: (propertyId?: string) => void;
   /** Records a real store purchase against one property. Called by the billing layer. */
@@ -331,6 +348,10 @@ export const useStore = create<StoreState>()(
     (set, get) => ({
       account: undefined,
       ...EMPTY,
+      // Deliberately not in EMPTY: `resetEverything` clears the home record,
+      // and somebody's request to be told when Dwella reaches their street is
+      // not part of it.
+      waitlist: [],
       hydrated: false,
 
       signIn: (account) => set({ account }),
@@ -973,6 +994,30 @@ export const useStore = create<StoreState>()(
           return { paymentMethods: remaining };
         }),
 
+      /*
+       * A waitlist entry is not part of any home's record — it belongs to a
+       * house Dwella has no record of — so it sits beside them rather than in
+       * one, and survives `resetEverything`'s account wipe for the same reason
+       * it survives signing out: the person asked to be told when their area
+       * opens, and forgetting that because they cleared an account they never
+       * finished making would be losing the one thing they gave us.
+       */
+      joinWaitlist: (draft) => {
+        const entry = buildWaitlistEntry(draft, newId('wl'), nowISO());
+        if (!entry) return undefined;
+        // Same email, same area, twice: keep the newer consents, not a duplicate
+        // that would count as two homes when deciding where to open next.
+        set((state) => ({
+          waitlist: [
+            ...state.waitlist.filter(
+              (e) => !(e.email === entry.email && e.postalCode === entry.postalCode),
+            ),
+            entry,
+          ],
+        }));
+        return entry;
+      },
+
       recordCareVisit: (propertyId, on, note) =>
         set((state) => ({
           careVisits: [...state.careVisits, { id: newId('visit'), propertyId, usedOn: on, note }],
@@ -1005,6 +1050,7 @@ export const useStore = create<StoreState>()(
         paymentMethods: state.paymentMethods,
         charges: state.charges,
         careVisits: state.careVisits,
+        waitlist: state.waitlist,
         usage: state.usage,
       }),
       /**
@@ -1258,6 +1304,11 @@ export function useHomeRecord(): HomeRecord | undefined {
     completions,
     serviceRequests,
   ]);
+}
+
+/** Waitlist entries recorded on this device. */
+export function useWaitlist(): WaitlistEntry[] {
+  return useStore((s) => s.waitlist);
 }
 
 /**

@@ -8,6 +8,7 @@ import {
   verifyCode,
 } from '../../src/auth/client';
 import { newId } from '../../src/state/ids';
+import { useSetupDraft } from '../../src/state/setupDraft';
 import { useStore } from '../../src/state/store';
 import {
   Body,
@@ -42,6 +43,7 @@ export default function EmailSignIn() {
   const theme = useTheme();
   const router = useRouter();
   const signIn = useStore((s) => s.signIn);
+  const draft = useSetupDraft();
 
   const hasServer = isAccountsServerConfigured();
   const [email, setEmail] = useState('');
@@ -61,7 +63,14 @@ export default function EmailSignIn() {
       email: address,
       createdAt: new Date().toISOString(),
     });
-    router.replace('/setup/address');
+    /*
+     * Back to wherever setup was. Somebody who checked their address first —
+     * which is everybody arriving through the front door — has already picked
+     * the building and been told Dwella covers it, and asking for it again
+     * after they made the account reads as the app having lost their answer.
+     * Somebody signing in cold still needs to give one.
+     */
+    router.replace(draft.address ? '/setup/relationship' : '/setup/address');
   };
 
   const submitEmail = async () => {

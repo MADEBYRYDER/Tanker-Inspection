@@ -351,6 +351,15 @@ export interface Provider {
  * is what lets this object survive being sold rather than being copied between
  * two people's accounts.
  */
+/** Somewhere post can be delivered. Not necessarily a building Dwella knows. */
+export interface PostalAddress {
+  line1: string;
+  line2?: string;
+  city?: string;
+  state?: string;
+  postalCode?: string;
+}
+
 export interface Home {
   id: string;
   /** Quotable identifier, stable for the life of the building. `DW-829173`. */
@@ -365,6 +374,18 @@ export interface Home {
   squareFeet?: number;
   /** Rough climate bucket; nudges seasonal scheduling and corrosion-sensitive lifespans. */
   climate: 'humid_subtropical' | 'temperate' | 'cold' | 'arid' | 'coastal';
+  /**
+   * Where post about this property should go, when that is not the property.
+   *
+   * A separate concept from the address above, and absent by default — absent
+   * means "the building itself", which is true for almost everybody. It exists
+   * because the cases where it is false are exactly Dwella's harder customers:
+   * a landlord whose rental's post goes to their office, an owner of a beach
+   * house who is there six weeks a year, anyone using a PO box. Deriving the
+   * mailing address from the property address works until the first welcome kit
+   * is posted to a tenant.
+   */
+  mailingAddress?: PostalAddress;
   /**
    * A picture of the building, held as a small JPEG data URI.
    *

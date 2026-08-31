@@ -14,6 +14,7 @@ import {
   trialAvailable,
   type Tier,
 } from '../../src/core/billing';
+import { isLive, placeLabel } from '../../src/core/serviceArea';
 import { formatDate, today } from '../../src/core/dates';
 import { formatMoneyExact } from '../../src/core/money';
 import { subscriptionFor, useStore } from '../../src/state/store';
@@ -274,18 +275,39 @@ export default function MembershipDetails() {
                       option as Exclude<Tier, 'free'>,
                       asOf,
                     );
+              /*
+               * Care is a van, not a download. Selling seasonal visits at a
+               * property no technician can reach is a promise that fails on
+               * the day somebody tries to book — so it is offered where it can
+               * be honoured, and named as coming everywhere else. The record
+               * tiers have no such constraint and are never gated this way.
+               */
+              const reachable = option !== 'care' || isLive('care', property.postalCode);
               return (
-                <Card key={option} onPress={() => void move(option)}>
+                <Card key={option} onPress={reachable ? () => void move(option) : undefined}>
                   <Row justify="space-between" gap={spacing.md}>
                     <View style={{ flex: 1 }}>
-                      <Text style={[type.bodyStrong, { color: theme.text }]}>
-                        {moveLabel(option)}
+                      <Text
+                        style={[
+                          type.bodyStrong,
+                          { color: reachable ? theme.text : theme.textSecondary },
+                        ]}
+                      >
+                        {reachable ? moveLabel(option) : `${target.name}`}
                       </Text>
-                      <Tertiary>{target.blurb}</Tertiary>
+                      <Tertiary>
+                        {reachable
+                          ? target.blurb
+                          : `Not in ${placeLabel({ line1: '', city: property.city, state: property.state, postalCode: property.postalCode }) ?? 'your area'} yet — Care visits run where Dwella has technicians.`}
+                      </Tertiary>
                     </View>
-                    <Text style={[type.bodyStrong, { color: theme.text }, tabular]}>
-                      {price > 0 ? `${formatMoneyExact(price)}/mo` : 'Free'}
-                    </Text>
+                    {reachable ? (
+                      <Text style={[type.bodyStrong, { color: theme.text }, tabular]}>
+                        {price > 0 ? `${formatMoneyExact(price)}/mo` : 'Free'}
+                      </Text>
+                    ) : (
+                      <Badge label="coming soon" fg={theme.textSecondary} bg={theme.surfaceSunken} />
+                    )}
                   </Row>
                 </Card>
               );

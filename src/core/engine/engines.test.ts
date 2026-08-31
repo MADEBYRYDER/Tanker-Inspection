@@ -591,10 +591,14 @@ describe('transfer to a new owner', () => {
     expect(transferred.serviceRequests).toHaveLength(0);
   });
 
-  it('withholds the seller’s photograph of the house', () => {
+  it('withholds the seller’s photograph and where their post goes', () => {
     const record = sample();
     record.home.photoUri = 'data:image/jpeg;base64,AAAA';
+    record.home.mailingAddress = { line1: 'PO Box 40', city: 'Charleston', state: 'SC' };
     const transferred = redactForTransfer(record);
+    // Where the seller has post sent is an office, a second home or a box —
+    // attached to them, not to the building the buyer is inheriting.
+    expect(transferred.home.mailingAddress).toBeUndefined();
     // The building's facts transfer; a picture somebody took of it does not —
     // it is not documented about the house, and it can hold whoever was
     // standing on the porch. The address and the record ID must survive it.

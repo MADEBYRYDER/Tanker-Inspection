@@ -1,25 +1,21 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { Text, View } from 'react-native';
-import {
-  PROVIDER_UNAVAILABLE,
-  providerAvailable,
-  type IdentityProvider,
-} from '../src/auth/client';
 import { buildSampleRecord } from '../src/data/sampleHome';
 import { useStore } from '../src/state/store';
 import { Body, Row, Screen, Small, Tertiary, Touchable } from '../src/ui/components';
-import { useDialog } from '../src/ui/dialog';
 import { DwellaLockup } from '../src/ui/logo';
 import { fonts, radius, spacing, type, useTheme } from '../src/ui/theme';
 
 /**
  * The way in.
  *
- * The real onboarding is building the Home Record, not filling out an account
- * form, so this screen's job is to be got past. Three ways in, no password, no
- * name, no payment — nothing is asked for here that the app cannot ask for later
- * once it has shown it is worth answering.
+ * The call to action is "Check your address", not "Sign up". That is partly a
+ * marketing choice — it is intriguing and commits to nothing — but mostly it is
+ * the honest one: while Dwella runs in one metro, an account is worth nothing
+ * until we know whether the house is covered, and the address is the only thing
+ * that can answer that. It also suits a product whose subject is a building
+ * rather than a person.
  *
  * The two paths that attach to a property somebody else already created sit at
  * the bottom rather than being hidden behind the email flow. A buyer holding a
@@ -31,24 +27,12 @@ import { fonts, radius, spacing, type, useTheme } from '../src/ui/theme';
 export default function Welcome() {
   const theme = useTheme();
   const router = useRouter();
-  const { alert } = useDialog();
   const loadRecord = useStore((s) => s.loadRecord);
 
   const loadSample = () => {
     const { record, media, billing } = buildSampleRecord();
     loadRecord(record, media, billing);
     router.replace('/(tabs)');
-  };
-
-  const withProvider = (provider: IdentityProvider) => {
-    if (!providerAvailable(provider)) {
-      void alert(
-        provider === 'apple' ? 'Sign in with Apple' : 'Continue with Google',
-        PROVIDER_UNAVAILABLE[provider],
-      );
-      return;
-    }
-    router.push('/setup/address');
   };
 
   return (
@@ -65,28 +49,14 @@ export default function Welcome() {
 
       <View style={{ gap: spacing.sm, marginTop: spacing.lg }}>
         <ProviderButton
-          label="Continue with Apple"
-          icon="logo-apple"
-          onPress={() => withProvider('apple')}
+          label="Check your address"
+          icon="arrow-forward"
+          onPress={() => router.push('/setup/address')}
           filled
         />
-        <ProviderButton
-          label="Continue with Google"
-          icon="logo-google"
-          onPress={() => withProvider('google')}
-        />
-
-        <Row gap={spacing.md} style={{ marginVertical: spacing.sm }}>
-          <View style={{ flex: 1, height: 1, backgroundColor: theme.border }} />
-          <Tertiary>or</Tertiary>
-          <View style={{ flex: 1, height: 1, backgroundColor: theme.border }} />
-        </Row>
-
-        <ProviderButton
-          label="Continue with email"
-          icon="mail-outline"
-          onPress={() => router.push('/auth/email')}
-        />
+        <Tertiary style={{ textAlign: 'center' }}>
+          Dwella is open to homeowners in the Charleston, SC area, with more cities to come.
+        </Tertiary>
       </View>
 
       <View style={{ alignItems: 'center', gap: spacing.lg, marginTop: spacing.md }}>

@@ -70,7 +70,9 @@ export default function RootLayout() {
           nothing. Back is still available by gesture.
         */}
         <Stack.Screen name="welcome" options={{ headerShown: false }} />
+        <Stack.Screen name="auth/choose" options={{ title: '' }} />
         <Stack.Screen name="auth/email" options={{ title: '' }} />
+        <Stack.Screen name="waitlist" options={{ title: '' }} />
         <Stack.Screen name="setup/address" options={{ title: '' }} />
         <Stack.Screen name="setup/relationship" options={{ title: '' }} />
         <Stack.Screen name="setup/first-scan" options={{ headerShown: false }} />
@@ -106,6 +108,7 @@ export default function RootLayout() {
         <Stack.Screen name="settings" options={{ title: 'Settings' }} />
         <Stack.Screen name="homes" options={{ title: 'My Homes' }} />
         <Stack.Screen name="home/new" options={{ title: 'Add a Home' }} />
+        <Stack.Screen name="home/mailing" options={{ title: '' }} />
         <Stack.Screen name="household" options={{ title: 'Household & Access' }} />
         <Stack.Screen name="billing/index" options={{ title: 'Billing & Membership' }} />
         <Stack.Screen name="billing/[propertyId]" options={{ title: 'Membership' }} />

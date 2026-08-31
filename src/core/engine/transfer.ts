@@ -52,10 +52,14 @@ export function redactForTransfer(record: HomeRecord, options: TransferOptions =
   const keptDocumentIds = new Set(documents.map((d) => d.id));
 
   return {
-    // The building's facts transfer; the seller's photograph of it does not.
-    // It is a picture somebody took, not something documented about the house,
-    // and it can hold whoever was standing on the porch that afternoon.
-    home: { ...record.home, photoUri: undefined },
+    /*
+     * The building's facts transfer. Two things attached to the seller rather
+     * than to the house do not: the photograph they took of it, which can hold
+     * whoever was standing on the porch that afternoon, and where they have
+     * their post sent — frequently an office, a second home, or a PO box, and
+     * nobody else's business at all.
+     */
+    home: { ...record.home, photoUri: undefined, mailingAddress: undefined },
     components: record.components.map((c) => ({
       ...c,
       notes: undefined, // owner's private annotations

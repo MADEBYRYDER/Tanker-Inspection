@@ -112,6 +112,22 @@ export default function Settings() {
           <KeyValue label="Climate" value={record.home.climate.replace(/_/g, ' ')} />
           <KeyValue label="Equipment on record" value={String(record.components.length)} />
           <KeyValue label="Timeline entries" value={String(record.events.length)} />
+          {/*
+            Where post goes, kept apart from where the house is. Shown as a
+            value rather than hidden behind an edit screen, because "same as
+            this home" is the answer for almost everybody and seeing it
+            confirmed is the whole reassurance.
+          */}
+          <KeyValue
+            label="Mailing address"
+            value={record.home.mailingAddress?.line1 ?? 'Same as this home'}
+          />
+          <Button
+            label="Change mailing address"
+            icon="mail-outline"
+            variant="secondary"
+            onPress={() => router.push('/home/mailing')}
+          />
         </Card>
       ) : null}
 
